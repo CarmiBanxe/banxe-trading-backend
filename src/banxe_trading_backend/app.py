@@ -14,6 +14,7 @@ from banxe_trading_backend import __version__
 from banxe_trading_backend.api import orders_router, rate_router, symbols_router
 from banxe_trading_backend.config import Settings, get_settings
 from banxe_trading_backend.ports import (
+    DydxMarketDataAdapter,
     ExchangePort,
     InMemoryMockExchange,
     InMemoryMockMarketData,
@@ -29,8 +30,11 @@ def _build_exchange(settings: Settings) -> ExchangePort:
 
 
 def _build_market_data(settings: Settings) -> MarketDataPort:
-    # TODO(ADR-021 governance): dispatch on settings.market_data_provider to the
-    # real provider adapter. Only "mock" is implemented.
+    # Provider-parameterized. Default "mock" → deterministic, no network.
+    # "dydx" → public dYdX v4 Indexer (API-only; ADR-083 S6.2); constructed
+    # lazily here (no connection opens until the WS/REST is actually used).
+    if settings.market_data_provider == "dydx":
+        return DydxMarketDataAdapter.from_settings(settings)
     return InMemoryMockMarketData()
 
 
