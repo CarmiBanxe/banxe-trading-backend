@@ -11,7 +11,12 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from banxe_trading_backend import __version__
-from banxe_trading_backend.api import orders_router, rate_router, symbols_router
+from banxe_trading_backend.api import (
+    auth_router,
+    orders_router,
+    rate_router,
+    symbols_router,
+)
 from banxe_trading_backend.config import Settings, get_settings
 from banxe_trading_backend.ports import (
     DydxMarketDataAdapter,
@@ -19,8 +24,15 @@ from banxe_trading_backend.ports import (
     InMemoryMockExchange,
     InMemoryMockMarketData,
     MarketDataPort,
+    SiweAuthAdapter,
+    WalletAuthPort,
 )
 from banxe_trading_backend.ws import orderbook_router
+
+
+def _build_wallet_auth(settings: Settings) -> WalletAuthPort:
+    # SIWE/EIP-4361 (ADR-083 D4). Self-custodial — backend holds no private keys.
+    return SiweAuthAdapter.from_settings(settings)
 
 
 def _build_exchange(settings: Settings) -> ExchangePort:
@@ -45,12 +57,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.exchange = _build_exchange(settings)
     app.state.market_data = _build_market_data(settings)
+    app.state.wallet_auth = _build_wallet_auth(settings)
 
     @app.get("/healthz", tags=["health"])
     async def healthz() -> dict[str, str]:
         return {"status": "ok", "service": settings.app_name, "version": __version__}
 
     api = settings.api_prefix
+    app.include_router(auth_router, prefix=api)
     app.include_router(orders_router, prefix=api)
     app.include_router(rate_router, prefix=api)
     app.include_router(symbols_router, prefix=api)

@@ -7,12 +7,16 @@ from .dydx_market_data import (
 )
 from .exchange_port import ExchangePort, InMemoryMockExchange
 from .market_data_port import InMemoryMockMarketData, MarketDataPort
+from .wallet_auth_port import SiweAuthAdapter, WalletAuthError, WalletAuthPort
 
 __all__ = [
     "ExchangePort",
     "InMemoryMockExchange",
     "MarketDataPort",
     "InMemoryMockMarketData",
+    "WalletAuthPort",
+    "SiweAuthAdapter",
+    "WalletAuthError",
     "DydxMarketDataAdapter",
     "DydxIndexerTransport",
     "HttpxWebsocketsTransport",
