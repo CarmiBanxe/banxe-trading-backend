@@ -17,11 +17,18 @@ class Settings(BaseSettings):
     app_name: str = "banxe-trading-backend"
     api_prefix: str = "/api/v1"
 
-    # --- provider selection (governance-gated; mock-only in this skeleton) ---
-    # TODO(ADR-021 governance): choose the real MarketDataPort provider
-    #   (PrimaryExchangeAdapter / CCXT Pro / aggregator). "mock" is the only
-    #   implementation shipped in the skeleton.
+    # --- provider selection ---
+    # MarketDataPort provider: "mock" (default — deterministic CI, no network)
+    # or "dydx" (public dYdX v4 Indexer, API-only; ADR-083 S6.2). Default stays
+    # "mock" so nothing live runs in tests/CI.
     market_data_provider: str = "mock"
+
+    # --- dYdX v4 Indexer (PUBLIC market data; API-only, NO secrets/keys) ---
+    # Defaults are dYdX's public mainnet Indexer. These are PUBLIC endpoints,
+    # NOT secrets. No API key / wallet is required for read-only market data.
+    # AGPL: we call the public API only — no dYdX/AGPL code is vendored.
+    dydx_indexer_rest_url: str = "https://indexer.dydx.trade/v4"
+    dydx_indexer_ws_url: str = "wss://indexer.dydx.trade/v4/ws"
     # TODO(ADR-021 governance): choose the real ExchangePort binding to
     #   banxe-payment-core. "mock" is the only implementation in the skeleton.
     exchange_provider: str = "mock"
