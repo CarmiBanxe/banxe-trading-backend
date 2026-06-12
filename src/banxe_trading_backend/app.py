@@ -19,6 +19,7 @@ from banxe_trading_backend.api import (
 )
 from banxe_trading_backend.config import Settings, get_settings
 from banxe_trading_backend.ports import (
+    DydxExchangeAdapter,
     DydxMarketDataAdapter,
     ExchangePort,
     InMemoryMockExchange,
@@ -36,8 +37,10 @@ def _build_wallet_auth(settings: Settings) -> WalletAuthPort:
 
 
 def _build_exchange(settings: Settings) -> ExchangePort:
-    # TODO(ADR-021 governance): dispatch on settings.exchange_provider to the
-    # real payment-core-bound adapter. Only "mock" is implemented.
+    # Provider-parameterized. Default "mock" → deterministic, no network.
+    # "dydx" → unsigned-intent adapter (ADR-083 S6.3a); no signing/submission.
+    if settings.exchange_provider == "dydx":
+        return DydxExchangeAdapter.from_settings(settings)
     return InMemoryMockExchange()
 
 

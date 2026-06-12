@@ -63,6 +63,8 @@ class WalletAuthPort(Protocol):
 
     def verify(self, message: str, signature: str) -> Session: ...
 
+    def validate_token(self, token: str) -> Session | None: ...
+
 
 def _iso(epoch: float) -> str:
     return datetime.fromtimestamp(epoch, tz=UTC).isoformat()

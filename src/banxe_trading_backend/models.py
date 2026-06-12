@@ -52,6 +52,15 @@ class OrderType(str, Enum):
     LIMIT = "limit"
 
 
+class TimeInForce(str, Enum):
+    """dYdX-compatible time-in-force (ADR-083 §D3)."""
+
+    GTT = "GTT"  # good-til-time (default for LIMIT)
+    IOC = "IOC"  # immediate-or-cancel (default for MARKET)
+    FOK = "FOK"  # fill-or-kill
+    POST_ONLY = "POST_ONLY"
+
+
 class OrderState(str, Enum):
     ACCEPTED = "accepted"
     FILLED = "filled"
@@ -104,6 +113,8 @@ class PlaceOrderRequest(CamelModel):
     client_order_id: str
     correlation_id: str
     limit_price: DecimalStr | None = None
+    time_in_force: TimeInForce | None = None
+    reduce_only: bool = False
 
 
 class ExchangeOrderRequest(CamelModel):
@@ -117,6 +128,11 @@ class ExchangeOrderRequest(CamelModel):
     client_order_id: str
     correlation_id: str
     limit_price: DecimalStr | None = None
+    time_in_force: TimeInForce | None = None
+    reduce_only: bool = False
+    # Authenticated wallet address (from the SIWE session) — the order owner.
+    # Self-custodial: the client signs; the backend never holds keys.
+    owner_address: str | None = None
 
 
 class OrderResult(CamelModel):

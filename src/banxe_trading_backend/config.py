@@ -29,9 +29,22 @@ class Settings(BaseSettings):
     # AGPL: we call the public API only — no dYdX/AGPL code is vendored.
     dydx_indexer_rest_url: str = "https://indexer.dydx.trade/v4"
     dydx_indexer_ws_url: str = "wss://indexer.dydx.trade/v4/ws"
-    # TODO(ADR-021 governance): choose the real ExchangePort binding to
-    #   banxe-payment-core. "mock" is the only implementation in the skeleton.
+    # ExchangePort provider: "mock" (default — deterministic CI) or "dydx"
+    # (ADR-083 S6.3a — UNSIGNED intent construction; no signing/submission here).
     exchange_provider: str = "mock"
+
+    # --- dYdX ExchangePort (UNSIGNED intent; self-custodial — NO keys) ---
+    # The backend CONSTRUCTS unsigned order intents; the client wallet signs.
+    # It does NOT submit signed txns in this step — live submission is
+    # OPERATOR-GATED (real node endpoint + wallet), deferred to S6.3b.
+    dydx_subaccount_number: int = 0
+    # Builder Codes (revenue-share) — OPERATOR-GATED. Empty / no-op by default;
+    # set BOTH to attach builder_code_parameters. NO real address/fee is committed.
+    dydx_builder_address: str | None = None
+    dydx_builder_fee_ppm: int = 0
+    # OPERATOR-GATED live submission (S6.3b) — unused in this step.
+    dydx_submit_enabled: bool = False
+    dydx_node_url: str | None = None
 
     # --- public (non-secret) URLs only ---
     # Real upstream URLs are injected via env at deploy time; defaults are local.
