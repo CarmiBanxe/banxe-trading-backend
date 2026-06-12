@@ -1,0 +1,7 @@
+# Runtime dependencies (pinned). Source of truth is pyproject.toml [project.dependencies].
+# Dev/test/lint deps live in the `dev` extra: pip install -e .[dev]
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+websockets==14.1
