@@ -21,6 +21,42 @@ from banxe_trading_backend.models import (
     RateQuote,
 )
 
+# --- §D3 / exchangeport-CONTRACT-SPEC error model → HTTP status -------------- #
+
+
+class ExchangeError(Exception):
+    """Base for the 7-class exchange error model. Carries an HTTP status."""
+
+    http_status: int = 400
+
+
+class ValidationError(ExchangeError):
+    http_status = 400  # bad symbol/amount/price
+
+
+class IdempotencyConflict(ExchangeError):
+    http_status = 409  # same client_order_id, different payload
+
+
+class StaleRate(ExchangeError):
+    http_status = 409  # rate past ttl
+
+
+class ExchangeUnavailable(ExchangeError):
+    http_status = 503  # exchange API down / not reachable in this step
+
+
+class InsufficientBalance(ExchangeError):
+    http_status = 402  # account underfunded
+
+
+class ComplianceBlock(ExchangeError):
+    http_status = 451  # KYC tier / sanctions / Travel Rule gate
+
+
+class PartialFillTimeout(ExchangeError):
+    http_status = 200  # partial fill then expired — reconcile, not a hard error
+
 
 @runtime_checkable
 class ExchangePort(Protocol):
