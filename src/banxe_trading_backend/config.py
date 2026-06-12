@@ -38,9 +38,20 @@ class Settings(BaseSettings):
     orderbook_ws_url: str | None = None
     trade_proxy_url: str | None = None
 
-    # TODO(ADR-021 / ADR-017): auth mechanism is a documented seam, NOT Keycloak.
-    #   Order endpoints will require a backend-issued opaque session token,
-    #   validated by an AuthPort (see ports/). Mechanism is governance-gated.
+    # --- wallet auth (SIWE / EIP-4361; ADR-083 D4 — NOT Keycloak) ---
+    # Self-custodial: the backend verifies signatures and mints opaque session
+    # tokens; it holds NO private keys and takes NO custody. SIWE verification is
+    # signature-based — NO third-party API keys / secrets.
+    #
+    # `session_signing_key` signs the opaque session token (HMAC, not a JWT and
+    # NOT a wallet key). It ships with a SAFE DEV DEFAULT and MUST be rotated in
+    # production via BANXE_SESSION_SIGNING_KEY. This is the only auth "secret",
+    # and the default is an obvious placeholder, not a real credential.
+    session_signing_key: str = "dev-insecure-rotate-in-prod"
+    # SIWE domain the backend expects in the signed message (binds the login).
+    siwe_domain: str = "localhost"
+    nonce_ttl_seconds: int = 300
+    session_ttl_seconds: int = 86_400
     auth_enabled: bool = False
 
 

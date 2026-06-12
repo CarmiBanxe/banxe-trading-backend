@@ -169,3 +169,25 @@ def split_symbol(symbol: str) -> tuple[str, str]:
     if not base or not quote:
         raise ValueError(f"invalid symbol {symbol!r}; expected BASE-QUOTE")
     return base.upper(), quote.upper()
+
+
+# --- wallet auth (SIWE / EIP-4361; ADR-083 D4) ---
+
+
+class NonceResponse(CamelModel):
+    nonce: str
+    issued_at: str  # ISO 8601 UTC
+    expires_at: str
+
+
+class VerifyRequest(CamelModel):
+    """A signed SIWE (EIP-4361) message + its signature."""
+
+    message: str
+    signature: str
+
+
+class SessionResponse(CamelModel):
+    address: str
+    token: str  # opaque, HMAC-signed; the backend holds no private keys
+    expires_at: str
