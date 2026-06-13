@@ -38,11 +38,15 @@ class Settings(BaseSettings):
     # It does NOT submit signed txns in this step — live submission is
     # OPERATOR-GATED (real node endpoint + wallet), deferred to S6.3b.
     dydx_subaccount_number: int = 0
-    # Builder Codes (revenue-share) — OPERATOR-GATED. Empty / no-op by default;
-    # set BOTH to attach builder_code_parameters. NO real address/fee is committed.
+    # Builder Codes (revenue-share) — OPERATOR-GATED. Attached ONLY when BOTH a
+    # non-empty address AND a positive fee are set; otherwise no builder fields.
+    # NO real address/fee is committed (defaults: unset / 0).
     dydx_builder_address: str | None = None
     dydx_builder_fee_ppm: int = 0
-    # OPERATOR-GATED live submission (S6.3b) — unused in this step.
+    # Live submission (S6.3b) — OPERATOR-GATED, DEFAULT OFF. Submission requires
+    # BOTH dydx_submit_enabled AND a syntactically valid dydx_node_url; otherwise
+    # the backend only returns unsigned intents (submitted:false) and makes NO
+    # network call. NO real node endpoint is committed (defaults: false / unset).
     dydx_submit_enabled: bool = False
     dydx_node_url: str | None = None
 

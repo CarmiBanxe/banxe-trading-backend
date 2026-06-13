@@ -24,6 +24,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 from banxe_trading_backend.models import (
     ExchangeOrderRequest,
@@ -100,6 +101,34 @@ def _client_id(client_order_id: str) -> int:
     return int.from_bytes(hashlib.sha256(client_order_id.encode()).digest()[:4], "big")
 
 
+_NODE_URL_SCHEMES = frozenset({"http", "https", "grpc", "grpcs", "tcp"})
+
+
+def _is_valid_node_url(url: str | None) -> bool:
+    """True only for a non-empty URL with a recognised scheme + host.
+
+    No real endpoint is encoded here; this is pure syntactic validation so the
+    submission gate flips deterministically once an operator supplies a URL.
+    """
+    if not url:
+        return False
+    parsed = urlparse(url)
+    return parsed.scheme in _NODE_URL_SCHEMES and bool(parsed.netloc)
+
+
+def _builder_codes_from_settings(settings: Settings) -> BuilderCodes | None:
+    """Builder Codes attach ONLY when BOTH an address and a positive fee are set.
+
+    Default (address unset OR fee <= 0) → None → no builder fields on intents.
+    """
+    if settings.dydx_builder_address and settings.dydx_builder_fee_ppm > 0:
+        return BuilderCodes(
+            builder_address=settings.dydx_builder_address,
+            fee_ppm=settings.dydx_builder_fee_ppm,
+        )
+    return None
+
+
 class DydxExchangeAdapter:
     """ExchangePort that builds UNSIGNED dYdX intents (no signing, no submit)."""
 
@@ -109,21 +138,53 @@ class DydxExchangeAdapter:
         markets: Mapping[str, DydxMarketParams] | None = None,
         builder_codes: BuilderCodes | None = None,
         subaccount_number: int = 0,
+        submit_enabled: bool = False,
+        node_url: str | None = None,
     ) -> None:
         self._markets = dict(markets) if markets is not None else dict(_DEFAULT_MARKETS)
         self._builder_codes = builder_codes
         self._subaccount_number = subaccount_number
+        # Live-submission gate inputs (S6.3b). Both must be satisfied; default off.
+        self._submit_enabled = submit_enabled
+        self._node_url = node_url
 
     @classmethod
     def from_settings(cls, settings: Settings) -> DydxExchangeAdapter:
-        builder: BuilderCodes | None = None
-        # OPERATOR-GATED: attach Builder Codes only when an address is configured.
-        if settings.dydx_builder_address:
-            builder = BuilderCodes(
-                builder_address=settings.dydx_builder_address,
-                fee_ppm=settings.dydx_builder_fee_ppm,
+        return cls(
+            builder_codes=_builder_codes_from_settings(settings),
+            subaccount_number=settings.dydx_subaccount_number,
+            submit_enabled=settings.dydx_submit_enabled,
+            node_url=settings.dydx_node_url,
+        )
+
+    # --- live-submission gate (S6.3b) -------------------------------------- #
+
+    def submission_enabled(self) -> bool:
+        """Live submission requires BOTH the env flag AND a valid node URL.
+
+        Default (flag off OR node URL missing/invalid) → False, so behaviour is
+        identical to S6.3a: unsigned intents only, ``submitted: false``, and NO
+        network call is ever made.
+        """
+        return self._submit_enabled and _is_valid_node_url(self._node_url)
+
+    async def submit_signed_order(self, signed_order: Mapping[str, object]) -> OrderResult:
+        """Relay a CLIENT-signed order to the dYdX node (S6.3b).
+
+        Self-custodial: the backend never signs — it would only broadcast a tx the
+        wallet already signed. Gated by ``submission_enabled()``. This build wires
+        NO real endpoint, so even when the gate is open the call is refused without
+        any network I/O (the transport is operator-wired in S6.3b-final).
+        """
+        if not self.submission_enabled():
+            raise ExchangeUnavailable(
+                "live submission disabled — set BANXE_DYDX_SUBMIT_ENABLED and a valid "
+                "BANXE_DYDX_NODE_URL (operator-gated)"
             )
-        return cls(builder_codes=builder, subaccount_number=settings.dydx_subaccount_number)
+        # Gate is open, but no submission transport is wired in this build.
+        raise ExchangeUnavailable(
+            "dYdX submission transport not wired in this build (operator-gated, S6.3b-final)"
+        )
 
     # --- intent construction (the testable core) --------------------------- #
 
@@ -183,11 +244,13 @@ class DydxExchangeAdapter:
         }
 
     def _builder_params(self) -> dict[str, object] | None:
-        if self._builder_codes is None:
-            return None  # no-op default (gated)
+        # Gated: attach ONLY when a non-empty address AND a positive fee are set.
+        codes = self._builder_codes
+        if codes is None or not codes.builder_address or codes.fee_ppm <= 0:
+            return None  # no-op default
         return {
-            "builderAddress": self._builder_codes.builder_address,
-            "feePpm": self._builder_codes.fee_ppm,
+            "builderAddress": codes.builder_address,
+            "feePpm": codes.fee_ppm,
         }
 
     # --- ExchangePort surface ---------------------------------------------- #
