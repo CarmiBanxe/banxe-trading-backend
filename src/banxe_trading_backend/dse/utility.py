@@ -15,7 +15,7 @@ from .models import UtilityWeights
 
 
 @dataclass(frozen=True)
-class RiskMetrics:
+class CandidateMetrics:
     """Raw (fraction) candidate metrics used to compute utility."""
 
     expected_return: Decimal
@@ -25,7 +25,7 @@ class RiskMetrics:
     liquidity: Decimal  # [0, 1]
 
 
-def utility_score(metrics: RiskMetrics, weights: UtilityWeights) -> Decimal:
+def utility_score(metrics: CandidateMetrics, weights: UtilityWeights) -> Decimal:
     return (
         Decimal(weights.w1_expected_return) * metrics.expected_return
         - Decimal(weights.w2_volatility) * metrics.volatility

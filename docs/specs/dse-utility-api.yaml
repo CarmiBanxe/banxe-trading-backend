@@ -102,3 +102,47 @@ components:
         shockUp: { $ref: "#/components/schemas/StressScenario" }
         blackSwan: { $ref: "#/components/schemas/StressScenario" }
         explanation: { type: string }
+    Greeks:
+      type: object
+      description: >
+        Aggregated portfolio/position Greeks (decimal strings, I-01). ADVISORY
+        estimates — not a promise of P&L (T7.3). Simple Delta/Gamma/Theta models.
+      required: [delta, gamma, vega, theta, rho]
+      additionalProperties: false
+      properties:
+        delta: { type: string }
+        gamma: { type: string }
+        vega: { type: string }
+        theta: { type: string }
+        rho: { type: string }
+    RiskMetrics:
+      type: object
+      description: >
+        Risk advisory metrics for a recommendation (T7.3): aggregated Greeks,
+        parametric VaR99, drawdown, unrealized PnL, liquidity. ESTIMATES /
+        simulations, NOT guarantees; advisory-only, no execution.
+      required:
+        [greeks, var99Pct, ddPct, unrealizedPnlPct, unrealizedPnlUsd, liquidityScore]
+      additionalProperties: false
+      properties:
+        greeks: { $ref: "#/components/schemas/Greeks" }
+        var99Pct: { type: string }
+        ddPct: { type: string }
+        unrealizedPnlPct: { type: string }
+        unrealizedPnlUsd: { type: string }
+        liquidityScore: { type: string }
+    EarnMetrics:
+      type: object
+      description: >
+        Earn advisory metrics for earn-category actions (T7.3). Yields are
+        ESTIMATES, NOT a promise of return; rates are variable. Advisory-only.
+      required:
+        [currentYieldPct, protocol, chain, lockupDays, variableRate, riskSummary]
+      additionalProperties: false
+      properties:
+        currentYieldPct: { type: string }
+        protocol: { type: string, description: "e.g. StakeKit / Aave (mock here)" }
+        chain: { type: string }
+        lockupDays: { type: integer }
+        variableRate: { type: boolean }
+        riskSummary: { type: string }

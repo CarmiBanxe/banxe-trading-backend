@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     dse_provider: str = "mock"
     dse_sentiment_provider: str = "mock"
     dse_stress_provider: str = "mock"
+    # Risk (Greeks/VaR/PnL) + earn (yields) advisory seams — mock by default
+    # (T7.3). Real providers are OPERATOR-GATED; no keys/network in code.
+    dse_risk_provider: str = "mock"
+    dse_earn_provider: str = "mock"
 
     # --- public (non-secret) URLs only ---
     # Real upstream URLs are injected via env at deploy time; defaults are local.
