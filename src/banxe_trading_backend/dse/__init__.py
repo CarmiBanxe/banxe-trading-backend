@@ -21,6 +21,14 @@ from .models import (
     UtilityWeights,
 )
 from .profiles import AGGRESSIVE, BALANCED, CONSERVATIVE, weights_for
+from .providers import (
+    MockSentimentProvider,
+    MockStressProvider,
+    SentimentProvider,
+    StressProvider,
+    build_sentiment_provider,
+    build_stress_provider,
+)
 
 __all__ = [
     "DseEngine",
@@ -42,4 +50,10 @@ __all__ = [
     "BALANCED",
     "AGGRESSIVE",
     "weights_for",
+    "SentimentProvider",
+    "StressProvider",
+    "MockSentimentProvider",
+    "MockStressProvider",
+    "build_sentiment_provider",
+    "build_stress_provider",
 ]

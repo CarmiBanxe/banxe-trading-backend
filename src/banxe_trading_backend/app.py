@@ -61,8 +61,9 @@ def _build_market_data(settings: Settings) -> MarketDataPort:
 
 def _build_dse(settings: Settings, *, quote: QuotePort) -> DseEngine:
     # Advisory-only (ADR-084). Only the deterministic mock ships this sprint.
-    # The QuotePort seam is injected for future ER/slippage use (unused in mock).
-    return MockDseEngine(quote_port=quote)
+    # Provider seams (sentiment/stress) selected by env (mock default); the
+    # QuotePort seam is injected for future ER/slippage use (unused in mock).
+    return MockDseEngine.from_settings(settings, quote=quote)
 
 
 def _build_quote(settings: Settings) -> QuotePort:
