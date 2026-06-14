@@ -1,11 +1,11 @@
-"""DSE engine (T7.1) — advisory-only, deterministic mock (no network, no keys).
+"""DSE engine (T7.1/T7.2) — advisory-only, deterministic mock (no network, no keys).
 
-``MockDseEngine`` produces ranked, explainable recommendations from fixed,
-representative stub metrics: utility per the resolved risk profile, Kelly /
-Half-Kelly sizing, and mock sentiment + stress overlays. It NEVER signs, executes,
-or holds keys (self-custodial). Real sentiment (MiroFish) / stress (MicroFish
-CMS-VAE) / quote-driven ER are separate, env-gated sprints — wired here only as
-optional injected port seams (unused in the mock).
+``MockDseEngine`` ranks explainable recommendations from fixed candidate metrics:
+utility per the resolved risk profile, Kelly / Half-Kelly sizing, and sentiment +
+stress overlays sourced through injectable **provider seams** (T7.2). It NEVER
+signs, executes, or holds keys (self-custodial). Real sentiment (MiroFish) /
+stress (MicroFish CMS-VAE) / quote-driven ER are separate, env-gated sprints —
+wired here only as provider/port seams (mock by default).
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
+from .kelly import half_kelly_fraction, kelly_fraction
 from .models import (
     Action,
     ActionCategory,
@@ -23,17 +24,21 @@ from .models import (
     Recommendation,
     RecommendRequest,
     RecommendResponse,
-    SentimentScore,
-    StressScenario,
-    StressTests,
 )
 from .profiles import weights_for
+from .providers import (
+    MockSentimentProvider,
+    MockStressProvider,
+    SentimentProvider,
+    StressProvider,
+    build_sentiment_provider,
+    build_stress_provider,
+)
 from .utility import RiskMetrics, utility_score
 
 if TYPE_CHECKING:
+    from banxe_trading_backend.config import Settings
     from banxe_trading_backend.ports import ExchangePort, MarketDataPort, QuotePort
-
-from .kelly import half_kelly_fraction, kelly_fraction
 
 
 @runtime_checkable
@@ -66,14 +71,6 @@ _CANDIDATES: list[tuple[ActionType, ActionCategory, RiskMetrics, str, str, str, 
      "0.50", "1.0", "0.0", "Defer action pending a clearer signal."),
 ]
 
-# Fixed stress shocks (price moves). Mock/fixture this sprint.
-_SHOCKS: list[tuple[str, str]] = [
-    ("base", "0"),
-    ("shockDown", "-0.20"),
-    ("shockUp", "0.20"),
-    ("blackSwan", "-0.50"),
-]
-
 _DISCLAIMER = (
     "Advisory only — not investment advice and not an execution or "
     "portfolio-management service. BANXE DSE provides explainable model "
@@ -96,56 +93,51 @@ def _score(value: Decimal) -> str:
     return str(value.quantize(Decimal("0.000001")))
 
 
-def _mock_sentiment() -> SentimentScore:
-    return SentimentScore(
-        score="0.35", news="0.40", onchain="0.30", social="0.35",
-        model_version=_MODEL_VERSIONS.sentiment,
-    )
-
-
-def _mock_stress(beta: Decimal) -> StressTests:
-    scenarios: dict[str, StressScenario] = {}
-    for name, shock in _SHOCKS:
-        pnl = Decimal(shock) * beta
-        scenarios[name] = StressScenario(
-            name=name,
-            pnl_pct=_pct(pnl),
-            explanation=f"Price move {shock} × action beta {beta} → P&L {_pct(pnl)}%.",
-        )
-    return StressTests(
-        base=scenarios["base"],
-        shock_down=scenarios["shockDown"],
-        shock_up=scenarios["shockUp"],
-        black_swan=scenarios["blackSwan"],
-        explanation="Deterministic mock stress scenarios (MicroFish CMS-VAE is a later sprint).",
-    )
-
-
 class MockDseEngine:
     """Deterministic advisory mock — no network, no keys, no execution."""
 
     def __init__(
         self,
         *,
+        sentiment_provider: SentimentProvider | None = None,
+        stress_provider: StressProvider | None = None,
         quote_port: QuotePort | None = None,
         market_data: MarketDataPort | None = None,
         exchange: ExchangePort | None = None,
         now: Callable[[], str] | None = None,
     ) -> None:
-        # Integration seams (future): quote_port → ER/slippage from QuotePort;
-        # market_data/exchange → perps + risk models. Unused by the mock.
+        # Data-source seams (T7.2): sentiment + stress through providers (mock by
+        # default). Port seams (future): quote_port → ER/slippage; market_data /
+        # exchange → perps + risk models. Unused by the mock.
+        self._sentiment: SentimentProvider = sentiment_provider or MockSentimentProvider()
+        self._stress: StressProvider = stress_provider or MockStressProvider()
         self._quote_port = quote_port
         self._market_data = market_data
         self._exchange = exchange
         self._now = now or (lambda: datetime.now(UTC).isoformat())
 
+    @classmethod
+    def from_settings(cls, settings: Settings, *, quote: QuotePort | None = None) -> MockDseEngine:
+        # Provider seams selected by env (mock by default; real providers gated).
+        return cls(
+            sentiment_provider=build_sentiment_provider(settings.dse_sentiment_provider),
+            stress_provider=build_stress_provider(settings.dse_stress_provider),
+            quote_port=quote,
+        )
+
     async def recommend(self, request: RecommendRequest) -> RecommendResponse:
         weights = weights_for(request.risk_profile, request.custom_weights)
+        sentiment = await self._sentiment.get_sentiment(request.asset)
         recs: list[tuple[Decimal, Recommendation]] = []
         for atype, category, metrics, p, b, beta, reason in _CANDIDATES:
             u = utility_score(metrics, weights)
             kelly = kelly_fraction(Decimal(p), Decimal(b))
             half = half_kelly_fraction(Decimal(p), Decimal(b))
+            stress = (
+                await self._stress.get_stress(request.asset, Decimal(beta))
+                if request.include_stress_tests
+                else None
+            )
             rec = Recommendation(
                 rank=0,  # assigned after sort
                 action=Action(type=atype, category=category, asset=request.asset),
@@ -157,8 +149,8 @@ class MockDseEngine:
                 liquidity_score=str(metrics.liquidity.quantize(Decimal("0.0001"))),
                 kelly_size_pct=_pct(kelly),
                 half_kelly_size_pct=_pct(half),
-                sentiment=_mock_sentiment() if request.include_sentiment else None,
-                stress_tests=_mock_stress(Decimal(beta)) if request.include_stress_tests else None,
+                sentiment=sentiment if request.include_sentiment else None,
+                stress_tests=stress,
                 reasons=reason,
             )
             recs.append((u, rec))
@@ -169,7 +161,7 @@ class MockDseEngine:
 
         return RecommendResponse(
             recommendations=ranked,
-            sentiment=_mock_sentiment(),
+            sentiment=sentiment,
             model_versions=_MODEL_VERSIONS,
             disclaimer=_DISCLAIMER,
             as_of=self._now(),
