@@ -8,9 +8,11 @@ sprint — same engine, no Kong / partner keys / rate limits yet.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
 from banxe_trading_backend.dse import DseEngine, RecommendRequest, RecommendResponse
+
+_DEBUG_TRUTHY = {"1", "true", "yes", "on"}
 
 
 def get_dse_engine(request: Request) -> DseEngine:
@@ -26,9 +28,14 @@ router = APIRouter(prefix="/dss", tags=["dss"])
 async def recommend(
     body: RecommendRequest,
     engine: DseEngine = Depends(get_dse_engine),
+    x_banxe_dse_debug: str | None = Header(default=None),
 ) -> RecommendResponse:
+    # T7.8: the header only REQUESTS the sandbox decision-trace; the engine still
+    # requires the operator env flag (BANXE_DSE_DEBUG_ENABLED) to emit it, so
+    # production never returns a trace regardless of this header.
+    debug = (x_banxe_dse_debug or "").strip().lower() in _DEBUG_TRUTHY
     try:
-        return await engine.recommend(body)
+        return await engine.recommend(body, debug=debug)
     except ValueError as exc:
         # e.g. riskProfile 'custom' without customWeights.
         raise HTTPException(status_code=422, detail=str(exc)) from exc

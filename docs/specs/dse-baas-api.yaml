@@ -234,4 +234,58 @@ components:
             nullable: true,
             description: "T7.7 additive: explainability-layer version (traceability)",
           }
+        decisionTrace:
+          {
+            $ref: "#/components/schemas/DecisionTrace",
+            nullable: true,
+            description: "T7.8 DEV-ONLY: opt-in sandbox decision-trace; double-gated (BANXE_DSE_DEBUG_ENABLED + X-Banxe-Dse-Debug header). null/absent in production",
+          }
         asOf: { type: string, description: "ISO 8601 UTC" }
+    DecisionTraceStep:
+      type: object
+      required:
+        [
+          rank, actionType, actionCategory, rawExpectedReturn,
+          effectiveExpectedReturn, volatility, var99, var99Source,
+          drawdown, liquidity, utilityScore,
+        ]
+      additionalProperties: false
+      properties:
+        rank: { type: integer }
+        actionType: { type: string }
+        actionCategory: { type: string }
+        rawExpectedReturn: { type: string, description: "candidate ER fraction (decimal)" }
+        earnYieldPct: { type: string, nullable: true, description: "earn yield folded in, if any" }
+        effectiveExpectedReturn: { type: string, description: "ER fed into utility (decimal)" }
+        volatility: { type: string }
+        var99: { type: string, description: "VaR99 fraction fed into utility (decimal)" }
+        var99Source: { type: string, enum: [risk-provider, candidate-fallback] }
+        drawdown: { type: string }
+        liquidity: { type: string }
+        utilityScore: { type: string }
+    DecisionTrace:
+      type: object
+      description: >
+        T7.8 DEV-ONLY sandbox decision-trace. Reconstructs the mock decision path
+        (inputs, normalized features, utility, enrichment) by traceId. Carries NO
+        production secrets / keys / endpoints — only request-derived data, mock
+        model metadata, and provider class names. Does NOT change utility/ranking.
+      required:
+        [
+          traceId, riskProfile, weights, riskProvider, earnProvider,
+          sentimentProvider, stressProvider, enrichmentApplied, steps, note,
+        ]
+      additionalProperties: false
+      properties:
+        traceId: { type: string }
+        riskProfile: { type: string }
+        weights: { $ref: "./dse-utility-api.yaml#/components/schemas/UtilityWeights" }
+        riskProvider: { type: string, description: "provider class name or 'none' (not a secret)" }
+        earnProvider: { type: string }
+        sentimentProvider: { type: string }
+        stressProvider: { type: string }
+        enrichmentApplied: { type: boolean }
+        steps:
+          type: array
+          items: { $ref: "#/components/schemas/DecisionTraceStep" }
+        note: { type: string, description: "sandbox-debug disclaimer" }

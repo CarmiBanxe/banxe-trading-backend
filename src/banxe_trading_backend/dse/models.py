@@ -203,6 +203,48 @@ class ModelVersions(CamelModel):
     stress: str
 
 
+class DecisionTraceStep(CamelModel):
+    """Per-candidate trace of inputs → normalized features → score (T7.8 debug).
+
+    Sandbox/dev observability only. Carries request-derived + mock-model values;
+    NO secrets. Reconstructs how raw candidate metrics became the utility inputs.
+    """
+
+    rank: int
+    action_type: str
+    action_category: str
+    raw_expected_return: DecimalStr
+    earn_yield_pct: DecimalStr | None = None
+    effective_expected_return: DecimalStr
+    volatility: DecimalStr
+    var99: DecimalStr
+    var99_source: str  # risk-provider | candidate-fallback
+    drawdown: DecimalStr
+    liquidity: DecimalStr
+    utility_score: DecimalStr
+
+
+class DecisionTrace(CamelModel):
+    """Opt-in sandbox decision-trace (T7.8) — keyed by traceId; dev-only.
+
+    Double-gated (BANXE_DSE_DEBUG_ENABLED + X-Banxe-Dse-Debug header); absent in
+    production. Lets an engineer reconstruct the full mock decision path. Contains
+    NO production secrets/keys/endpoints — only request-derived data, mock model
+    metadata, and provider class names. Does NOT change utility or ranking.
+    """
+
+    trace_id: str
+    risk_profile: str
+    weights: UtilityWeights
+    risk_provider: str
+    earn_provider: str
+    sentiment_provider: str
+    stress_provider: str
+    enrichment_applied: bool
+    steps: list[DecisionTraceStep]
+    note: str
+
+
 class RecommendRequest(CamelModel):
     asset: str
     portfolio_value_usd: DecimalStr
@@ -224,4 +266,6 @@ class RecommendResponse(CamelModel):
     # the explainability-layer version. Optional / backward-compatible.
     trace_id: str | None = None
     explanation_version: str | None = None
+    # T7.8 opt-in sandbox decision-trace (dev-only, double-gated; null in prod).
+    decision_trace: DecisionTrace | None = None
     as_of: str
