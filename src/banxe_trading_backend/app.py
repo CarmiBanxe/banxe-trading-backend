@@ -14,6 +14,7 @@ from banxe_trading_backend import __version__
 from banxe_trading_backend.api import (
     auth_router,
     orders_router,
+    quotes_router,
     rate_router,
     symbols_router,
 )
@@ -24,7 +25,10 @@ from banxe_trading_backend.ports import (
     ExchangePort,
     InMemoryMockExchange,
     InMemoryMockMarketData,
+    LifiQuoteAdapter,
     MarketDataPort,
+    MockQuoteAdapter,
+    QuotePort,
     SiweAuthAdapter,
     WalletAuthPort,
 )
@@ -53,6 +57,15 @@ def _build_market_data(settings: Settings) -> MarketDataPort:
     return InMemoryMockMarketData()
 
 
+def _build_quote(settings: Settings) -> QuotePort:
+    # Provider-parameterized. Default "mock" → deterministic, no network.
+    # "lifi" → public LI.FI quote API (no key; ADR-083 S6.5); constructed lazily
+    # (no connection until a quote is actually requested).
+    if settings.quote_provider == "lifi":
+        return LifiQuoteAdapter.from_settings(settings)
+    return MockQuoteAdapter()
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     app = FastAPI(title=settings.app_name, version=__version__)
@@ -60,6 +73,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.exchange = _build_exchange(settings)
     app.state.market_data = _build_market_data(settings)
+    app.state.quote = _build_quote(settings)
     app.state.wallet_auth = _build_wallet_auth(settings)
 
     @app.get("/healthz", tags=["health"])
@@ -69,6 +83,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     api = settings.api_prefix
     app.include_router(auth_router, prefix=api)
     app.include_router(orders_router, prefix=api)
+    app.include_router(quotes_router, prefix=api)
     app.include_router(rate_router, prefix=api)
     app.include_router(symbols_router, prefix=api)
     app.include_router(orderbook_router)  # /ws/orderbook/{symbol}
