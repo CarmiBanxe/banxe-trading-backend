@@ -72,5 +72,9 @@ def test_engine_uses_injected_providers() -> None:
 
 
 def test_from_settings_rejects_unwired_provider_env() -> None:
-    with pytest.raises(ValueError, match="not wired"):
-        MockDseEngine.from_settings(Settings(dse_sentiment_provider="mirofish"))
+    # S10: sentiment/stress are resolved through the provider foundation. An
+    # unknown tier fails closed at from_settings. (The legacy dse_*_provider
+    # name seam is still guarded at app startup by assert_mock_only — see
+    # tests/test_dse_provider_layer.py.)
+    with pytest.raises(ValueError, match="unknown DSE provider tier"):
+        MockDseEngine.from_settings(Settings(dse_sentiment_tier="mirofish"))

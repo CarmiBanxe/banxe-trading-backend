@@ -30,6 +30,14 @@ from .models import (
     UtilityWeights,
 )
 from .profiles import AGGRESSIVE, BALANCED, CONSERVATIVE, weights_for
+from .provider_foundation import (
+    FoundationProviders,
+    MarketDataProvider,
+    MarketSnapshot,
+    ProviderTier,
+    foundation_profile,
+    resolve_foundation,
+)
 from .provider_layer import (
     LiveProviderNotWiredError,
     ProviderMode,
@@ -86,4 +94,10 @@ __all__ = [
     "LiveProviderNotWiredError",
     "provider_profile",
     "assert_mock_only",
+    "ProviderTier",
+    "MarketDataProvider",
+    "MarketSnapshot",
+    "FoundationProviders",
+    "resolve_foundation",
+    "foundation_profile",
 ]

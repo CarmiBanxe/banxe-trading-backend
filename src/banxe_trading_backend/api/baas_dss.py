@@ -87,5 +87,7 @@ async def baas_recommend(
                 # T8.3: safe provider wiring descriptor — NO keys/endpoints.
                 "providerMode": profile.mode,
                 "providerProfile": profile.to_dict(),
+                # S10: per-domain foundation provenance (tier + source; no secrets).
+                "foundationTiers": request.app.state.dse_foundation_profile,
             }
         )

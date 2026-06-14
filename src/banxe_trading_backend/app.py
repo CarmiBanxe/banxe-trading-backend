@@ -29,7 +29,9 @@ from banxe_trading_backend.dse import (
     DseEngine,
     MockDseEngine,
     assert_mock_only,
+    foundation_profile,
     provider_profile,
+    resolve_foundation,
 )
 from banxe_trading_backend.earn import (
     EarnRatesCatalog,
@@ -109,11 +111,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # T8.3 safety-rail: refuse to start with a not-yet-wired live provider config
     # (ODR). Default everywhere is mock; this never trips in sandbox/CI.
     assert_mock_only(settings)
+    # S10: resolve the DSE provider foundation at startup (fail-closed). Unsafe
+    # tier/live combinations raise here; default tiers are all mock (CI-safe).
+    foundation = resolve_foundation(settings)
     app = FastAPI(title=settings.app_name, version=__version__)
 
     app.state.settings = settings
     # T8.3: safe (non-secret) provider descriptor for observability.
     app.state.dse_provider_profile = provider_profile(settings)
+    # S10: safe (non-secret) per-domain foundation provenance (tier + source).
+    app.state.dse_foundation_profile = foundation_profile(foundation)
     app.state.exchange = _build_exchange(settings)
     app.state.market_data = _build_market_data(settings)
     app.state.quote = _build_quote(settings)

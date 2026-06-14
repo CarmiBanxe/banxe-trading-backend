@@ -42,6 +42,14 @@ info:
     compliance sign-off (MiCA / BaaS) and is NOT enabled here — the service refuses
     to start with a non-mock configuration. This section adds NO request/response
     fields and NO provider-specific schema: the contract is identical across modes.
+
+    PROVIDER FOUNDATION (S10): each market/sentiment/stress domain also has a tier
+    BANXE_DSE_<DOMAIN>_TIER ∈ {mock (default), stub, live-ready}. `live-ready` is a
+    CI-safe INERT scaffold (no network, no credentials); real activation needs
+    BANXE_DSE_LIVE_ALLOWED + credentials + a wired adapter (none exist — OPERATOR
+    DECISION REQUIRED) and otherwise FAILS CLOSED at startup. Per-domain provider
+    provenance (tier + source class, no secrets) is exposed only via the internal
+    health/metrics/log — NOT in this response. The contract is unchanged.
 paths:
   /v1/dss/recommend:
     post:

@@ -102,6 +102,20 @@ class Settings(BaseSettings):
     dse_earn_api_key: str = ""
     dse_earn_base_url: str = ""
 
+    # --- DSE provider foundation tiers (Sprint S10) ---
+    # Per-domain provider tier: "mock" (default, deterministic), "stub" (neutral
+    # fixtures for contract/fallback tests), or "live-ready" (CI-safe INERT
+    # scaffold — selectable but performs NO network and needs NO credentials).
+    # Default everywhere is mock; runtime stays mock-first and CI-safe.
+    dse_market_tier: str = "mock"
+    dse_sentiment_tier: str = "mock"
+    dse_stress_tier: str = "mock"
+    # Master live switch. Default OFF. When OFF, a "live-ready" tier runs inert.
+    # When ON, live activation is attempted and FAILS CLOSED unless a real network
+    # adapter + credentials are wired — neither exists this sprint (OPERATOR
+    # DECISION REQUIRED + compliance, MiCA / BaaS). Never set true in code/CI.
+    dse_live_allowed: bool = False
+
     # --- read-only Risk/Earn BaaS sandbox surface (T7.5) ---
     # GET /v1/risk/greeks + GET /v1/earn/rates — advisory, READ-ONLY, sandbox.
     # Mock by default (deterministic, no network/keys). Real providers are

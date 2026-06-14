@@ -24,6 +24,7 @@ async def health_dse_baas(request: Request) -> JSONResponse:
         sandbox_enabled=settings.dse_baas_sandbox_enabled,
         engine=request.app.state.dse,
         provider_mode=request.app.state.dse_provider_profile.mode,
+        foundation=request.app.state.dse_foundation_profile,
     )
     # OK/DEGRADED → 200 (component alive); ERROR → 503 (dry-run failed).
     code = 503 if result["status"] == "ERROR" else 200
