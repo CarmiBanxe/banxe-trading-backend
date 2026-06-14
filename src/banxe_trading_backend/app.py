@@ -16,6 +16,7 @@ from banxe_trading_backend.api import (
     baas_dss_router,
     dss_router,
     earn_router,
+    internal_router,
     orders_router,
     quotes_router,
     rate_router,
@@ -29,6 +30,7 @@ from banxe_trading_backend.earn import (
     build_earn_provider,
     build_earn_rates_catalog,
 )
+from banxe_trading_backend.observability import BaasMetrics
 from banxe_trading_backend.ports import (
     DydxExchangeAdapter,
     DydxMarketDataAdapter,
@@ -108,6 +110,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.risk_greeks = _build_risk_greeks(settings)
     app.state.earn_rates = _build_earn_rates(settings)
     app.state.wallet_auth = _build_wallet_auth(settings)
+    # T8.2: internal DSE BaaS observability counters (in-process; Prometheus text).
+    app.state.baas_metrics = BaasMetrics()
 
     @app.get("/healthz", tags=["health"])
     async def healthz() -> dict[str, str]:
@@ -127,6 +131,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Always registered; gated at request time by BANXE_DSE_BAAS_SANDBOX_ENABLED
     # (503 when off — production default serves no external DSE BaaS).
     app.include_router(baas_dss_router)
+    # T8.2: internal-only observability/readiness (excluded from OpenAPI; fence at
+    # ingress). /internal/health/dse-baas + /internal/metrics/dse-baas.
+    app.include_router(internal_router)
 
     return app
 
