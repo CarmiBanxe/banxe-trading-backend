@@ -129,6 +129,13 @@ class Settings(BaseSettings):
     # ODR) and fails closed at startup. Analytics-only: NO real billing/charges.
     fee_provider: str = "mock"
 
+    # --- Quant-moat advisory seam (S14 / X9.3) — analytics, mock-only ---
+    # Quant-analytics provider for POST /api/v1/quant/preview. Only "mock" is wired
+    # and default; any other value is OPERATOR-GATED (a live quant stack — Remizov /
+    # Heston / FNO / deep hedging — is ODR) and fails closed at startup. Advisory
+    # analytics only: no live models, no live price feeds, no trading decisions.
+    quant_provider: str = "mock"
+
     # --- read-only Risk/Earn BaaS sandbox surface (T7.5) ---
     # GET /v1/risk/greeks + GET /v1/earn/rates — advisory, READ-ONLY, sandbox.
     # Mock by default (deterministic, no network/keys). Real providers are
