@@ -63,6 +63,7 @@ from banxe_trading_backend.ports import (
     build_quant_provider,
 )
 from banxe_trading_backend.risk import RiskGreeksProvider, build_risk_greeks_provider
+from banxe_trading_backend.services.intent_preview import build_execution_preview_provider
 from banxe_trading_backend.ws import orderbook_router
 
 
@@ -164,6 +165,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.fee_engine = _build_fee_engine(settings)
     # S14: quant-moat engine (advisory analytics; mock default; fails closed).
     app.state.quant = _build_quant_engine(settings)
+    # S16: execution-preview provider guard (mock default; non-mock fails closed).
+    app.state.execution_preview_provider = build_execution_preview_provider(
+        settings.execution_preview_provider
+    )
 
     @app.get("/healthz", tags=["health"])
     async def healthz() -> dict[str, str]:

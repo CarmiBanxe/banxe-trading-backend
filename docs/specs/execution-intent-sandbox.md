@@ -115,9 +115,56 @@ no network in CI); `http` targets this internal endpoint at
 `VITE_EXECUTION_API_URL` (default `/api/v1`). No keys; the preview is always
 unsigned and never submitted.
 
+## Multi-venue preview (S16, additive)
+
+The same endpoint is **additively** hardened to a multi-venue / multi-product
+preview. The legacy single-venue request (above) is **unchanged**. When the request
+carries `venues` / `productType` / `intentType`, the engine returns a normalized
+candidate set instead of a single mapped order — **still strictly unsigned**.
+
+Request (multi-venue; additive optional fields):
+
+```json
+{ "intentType": "swap", "asset": "ETH", "quoteAsset": "USDC", "notionalUsd": "1000",
+  "venues": ["lifi", "0x"], "productType": "spot", "executionMode": "preview-only",
+  "riskProfile": "balanced" }
+```
+
+- `intentType` ∈ `swap | trade | stake | hedge`; `productType` ∈ `spot | perp | earn`.
+- `venues` optional — if omitted, deterministic **default venues** per product:
+  spot → `lifi, 0x`; perp → `dydx-v4, gmx-v2, injective`; earn → `stakekit, aave-v3,
+  lido`. An unknown venue uses mock defaults with a `note`.
+- `executionMode` must be `preview-only` (else `422`). The request model is
+  **`extra="forbid"`**, so any `submit` / `sign` / `live` flag **fails closed (`422`)**.
+
+Response (additive — legacy fields stay; multi-venue adds `intentType`,
+`productType`, `quoteAsset`, `candidates[]`, `bestCandidate`):
+
+```json
+{ "mode": "sandbox-mock", "signed": false, "submitted": false,
+  "intentType": "swap", "productType": "spot", "asset": "ETH", "quoteAsset": "USDC",
+  "bestCandidate": { "venue": "lifi", "route": "mock-lifi-route", "productType": "spot",
+    "expectedPrice": "3493.70", "estimatedFeeUsd": "0.80", "estimatedSlippageBps": "18.00",
+    "etaSeconds": 45, "confidence": "0.87", "signed": false, "submitted": false },
+  "candidates": [ /* ...each signed:false, submitted:false... */ ],
+  "disclaimer": "..." }
+```
+
+Each candidate carries **descriptive/advisory fields only** (`expectedPrice`,
+`estimatedFeeUsd`, `estimatedSlippageBps`, `etaSeconds`, `confidence`, optional
+`notes`) — `signed:false`, `submitted:false`. Ranking is a **deterministic mock
+score** (lower fee/slippage better, lower ETA slightly better, venue suitability by
+product, small `riskProfile` adjustment); `bestCandidate` is the top-scored. No
+network, no real quotes/orderbooks/gas. Validation: `422` on empty asset,
+`notionalUsd ≤ 0`, bad `productType`/`intentType`, empty `venues` entries, or
+`executionMode != "preview-only"`. The execution-preview provider seam
+`BANXE_EXECUTION_PREVIEW_PROVIDER` defaults to `mock`; any other value **fails
+closed at startup** (a live execution/submission/signing provider is ODR).
+
 ## Out of scope (future, ODR-gated)
 
-Client-side signing, submission/execution to a live chain, multi-venue routing,
-real venue keys/endpoints, SLA/billing/partner-tiering. DSE live-providers remain
-PENDING/ODR (see `banxe-architecture/docs/specs/dse-live-providers-options.md`) and
-are untouched here.
+Client-side signing, submission/execution to a live chain, real multi-venue
+routing, real venue keys/endpoints, SLA/billing/partner-tiering. DSE live-providers
+remain PENDING/ODR (see
+`banxe-architecture/docs/specs/dse-live-providers-options.md`) and are untouched
+here.

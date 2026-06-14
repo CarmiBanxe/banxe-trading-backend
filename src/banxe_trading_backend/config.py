@@ -136,6 +136,13 @@ class Settings(BaseSettings):
     # analytics only: no live models, no live price feeds, no trading decisions.
     quant_provider: str = "mock"
 
+    # --- Execution-preview provider (S16) — unsigned multi-venue preview, mock-only ---
+    # Provider for POST /api/v1/execution/intent-preview. Only "mock" is wired and
+    # default; any other value is OPERATOR-GATED (a live execution / submission /
+    # signing provider is ODR) and fails closed at startup. Preview is ALWAYS
+    # unsigned and not submitted; no live chain, no keys.
+    execution_preview_provider: str = "mock"
+
     # --- read-only Risk/Earn BaaS sandbox surface (T7.5) ---
     # GET /v1/risk/greeks + GET /v1/earn/rates — advisory, READ-ONLY, sandbox.
     # Mock by default (deterministic, no network/keys). Real providers are
