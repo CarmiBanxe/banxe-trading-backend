@@ -15,15 +15,27 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
+from banxe_trading_backend.earn import (
+    EarnRatesProvider,
+    build_earn_provider,
+)
+from banxe_trading_backend.risk import (
+    RiskMetricsProvider,
+    build_risk_provider,
+)
+
 from .kelly import half_kelly_fraction, kelly_fraction
 from .models import (
     Action,
     ActionCategory,
     ActionType,
+    EarnMetrics,
+    Greeks,
     ModelVersions,
     Recommendation,
     RecommendRequest,
     RecommendResponse,
+    RiskMetrics,
 )
 from .profiles import weights_for
 from .providers import (
@@ -34,7 +46,7 @@ from .providers import (
     build_sentiment_provider,
     build_stress_provider,
 )
-from .utility import RiskMetrics, utility_score
+from .utility import CandidateMetrics, utility_score
 
 if TYPE_CHECKING:
     from banxe_trading_backend.config import Settings
@@ -51,12 +63,12 @@ class DseEngine(Protocol):
 # --- deterministic stub candidate set (asset-agnostic; mock data) ----------- #
 
 
-def _m(er: str, vol: str, var99: str, dd: str, liq: str) -> RiskMetrics:
-    return RiskMetrics(Decimal(er), Decimal(vol), Decimal(var99), Decimal(dd), Decimal(liq))
+def _m(er: str, vol: str, var99: str, dd: str, liq: str) -> CandidateMetrics:
+    return CandidateMetrics(Decimal(er), Decimal(vol), Decimal(var99), Decimal(dd), Decimal(liq))
 
 
 # (type, category, metrics, win_rate p, win/loss ratio b, beta, reason)
-_CANDIDATES: list[tuple[ActionType, ActionCategory, RiskMetrics, str, str, str, str]] = [
+_CANDIDATES: list[tuple[ActionType, ActionCategory, CandidateMetrics, str, str, str, str]] = [
     (ActionType.OPEN_LONG, ActionCategory.PERP, _m("0.08", "0.04", "0.06", "0.05", "0.90"),
      "0.55", "1.5", "1.0", "Positive expected return with leverage; sized via Half-Kelly."),
     (ActionType.BUY, ActionCategory.SPOT, _m("0.06", "0.03", "0.04", "0.04", "0.95"),
@@ -93,6 +105,37 @@ def _score(value: Decimal) -> str:
     return str(value.quantize(Decimal("0.000001")))
 
 
+def _fallback_risk_metrics(metrics: CandidateMetrics) -> RiskMetrics:
+    """Degrade gracefully when no risk provider is configured (candidate-derived)."""
+    return RiskMetrics(
+        greeks=Greeks(delta="0", gamma="0", vega="0", theta="0", rho="0"),
+        var99_pct=_pct(metrics.var99),
+        dd_pct=_pct(metrics.max_drawdown),
+        unrealized_pnl_pct="0.0000",
+        unrealized_pnl_usd="0.00",
+        liquidity_score=str(metrics.liquidity.quantize(Decimal("0.0001"))),
+    )
+
+
+def _effective_metrics(
+    metrics: CandidateMetrics, risk: RiskMetrics, earn: EarnMetrics | None
+) -> CandidateMetrics:
+    """Fold available risk/earn metrics into the utility inputs (graceful)."""
+    expected_return = metrics.expected_return
+    if earn is not None:
+        # Earn yield adds to the action's expected return.
+        expected_return = expected_return + Decimal(earn.current_yield_pct) / 100
+    # Use the (parametric) VaR99 from the risk layer.
+    var99 = Decimal(risk.var99_pct) / 100
+    return CandidateMetrics(
+        expected_return=expected_return,
+        volatility=metrics.volatility,
+        var99=var99,
+        max_drawdown=metrics.max_drawdown,
+        liquidity=metrics.liquidity,
+    )
+
+
 class MockDseEngine:
     """Deterministic advisory mock — no network, no keys, no execution."""
 
@@ -101,16 +144,20 @@ class MockDseEngine:
         *,
         sentiment_provider: SentimentProvider | None = None,
         stress_provider: StressProvider | None = None,
+        risk_provider: RiskMetricsProvider | None = None,
+        earn_provider: EarnRatesProvider | None = None,
         quote_port: QuotePort | None = None,
         market_data: MarketDataPort | None = None,
         exchange: ExchangePort | None = None,
         now: Callable[[], str] | None = None,
     ) -> None:
-        # Data-source seams (T7.2): sentiment + stress through providers (mock by
-        # default). Port seams (future): quote_port → ER/slippage; market_data /
-        # exchange → perps + risk models. Unused by the mock.
+        # Data-source seams: sentiment + stress (T7.2), risk + earn (T7.3) through
+        # providers (mock by default). Pass None to degrade gracefully. Port seams
+        # (future): quote_port → ER/slippage; market_data/exchange → perps/risk.
         self._sentiment: SentimentProvider = sentiment_provider or MockSentimentProvider()
         self._stress: StressProvider = stress_provider or MockStressProvider()
+        self._risk = risk_provider
+        self._earn = earn_provider
         self._quote_port = quote_port
         self._market_data = market_data
         self._exchange = exchange
@@ -122,6 +169,8 @@ class MockDseEngine:
         return cls(
             sentiment_provider=build_sentiment_provider(settings.dse_sentiment_provider),
             stress_provider=build_stress_provider(settings.dse_stress_provider),
+            risk_provider=build_risk_provider(settings.dse_risk_provider),
+            earn_provider=build_earn_provider(settings.dse_earn_provider),
             quote_port=quote,
         )
 
@@ -130,7 +179,19 @@ class MockDseEngine:
         sentiment = await self._sentiment.get_sentiment(request.asset)
         recs: list[tuple[Decimal, Recommendation]] = []
         for atype, category, metrics, p, b, beta, reason in _CANDIDATES:
-            u = utility_score(metrics, weights)
+            action = Action(type=atype, category=category, asset=request.asset)
+            # Risk metrics: provider when configured, else candidate-derived fallback.
+            risk = (
+                await self._risk.get_risk_metrics(request, action, metrics)
+                if self._risk is not None
+                else _fallback_risk_metrics(metrics)
+            )
+            # Earn metrics only for earn-category actions, when a provider is set.
+            earn: EarnMetrics | None = None
+            if category is ActionCategory.EARN and self._earn is not None:
+                earn = await self._earn.get_earn_metrics(request.asset)
+
+            u = utility_score(_effective_metrics(metrics, risk, earn), weights)
             kelly = kelly_fraction(Decimal(p), Decimal(b))
             half = half_kelly_fraction(Decimal(p), Decimal(b))
             stress = (
@@ -138,20 +199,26 @@ class MockDseEngine:
                 if request.include_stress_tests
                 else None
             )
+            reasons = f"{reason} VaR99 {risk.var99_pct}%, delta {risk.greeks.delta}."
+            if earn is not None:
+                reasons += f" Yield {earn.current_yield_pct}% ({earn.protocol}, {earn.chain})."
+
             rec = Recommendation(
                 rank=0,  # assigned after sort
-                action=Action(type=atype, category=category, asset=request.asset),
+                action=action,
                 utility_score=_score(u),
                 expected_return_pct=_pct(metrics.expected_return),
                 volatility_pct=_pct(metrics.volatility),
-                var99_pct=_pct(metrics.var99),
+                var99_pct=risk.var99_pct,
                 max_drawdown_pct=_pct(metrics.max_drawdown),
                 liquidity_score=str(metrics.liquidity.quantize(Decimal("0.0001"))),
                 kelly_size_pct=_pct(kelly),
                 half_kelly_size_pct=_pct(half),
+                risk_metrics=risk,
+                earn_metrics=earn,
                 sentiment=sentiment if request.include_sentiment else None,
                 stress_tests=stress,
-                reasons=reason,
+                reasons=reasons,
             )
             recs.append((u, rec))
 

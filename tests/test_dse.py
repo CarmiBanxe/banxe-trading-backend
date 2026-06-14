@@ -21,12 +21,15 @@ from banxe_trading_backend.dse import (
     CONSERVATIVE,
     Action,
     DseEngine,
+    EarnMetrics,
+    Greeks,
     MockDseEngine,
     ModelVersions,
     Position,
     Recommendation,
     RecommendRequest,
     RecommendResponse,
+    RiskMetrics,
     RiskProfile,
     SentimentScore,
     StressScenario,
@@ -34,10 +37,10 @@ from banxe_trading_backend.dse import (
     UtilityWeights,
 )
 from banxe_trading_backend.dse.kelly import half_kelly_fraction, kelly_fraction
-from banxe_trading_backend.dse.utility import RiskMetrics, utility_score
+from banxe_trading_backend.dse.utility import CandidateMetrics, utility_score
 
 _SPECS = Path(__file__).resolve().parents[1] / "docs" / "specs"
-OPEN_LONG_METRICS = RiskMetrics(
+OPEN_LONG_METRICS = CandidateMetrics(
     Decimal("0.08"), Decimal("0.04"), Decimal("0.06"), Decimal("0.05"), Decimal("0.90")
 )
 
@@ -162,6 +165,9 @@ def test_models_match_openapi_specs() -> None:
         (SentimentScore, utility, "SentimentScore"),
         (StressScenario, utility, "StressScenario"),
         (StressTests, utility, "StressTests"),
+        (Greeks, utility, "Greeks"),
+        (RiskMetrics, utility, "RiskMetrics"),
+        (EarnMetrics, utility, "EarnMetrics"),
         (Position, baas, "Position"),
         (Recommendation, baas, "Recommendation"),
         (ModelVersions, baas, "ModelVersions"),

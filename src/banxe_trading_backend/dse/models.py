@@ -85,6 +85,38 @@ class Position(CamelModel):
     side: str  # long | short | spot
 
 
+class Greeks(CamelModel):
+    """Aggregated option/portfolio Greeks (decimal strings, I-01). Advisory."""
+
+    delta: DecimalStr
+    gamma: DecimalStr
+    vega: DecimalStr
+    theta: DecimalStr
+    rho: DecimalStr
+
+
+class RiskMetrics(CamelModel):
+    """Risk advisory metrics for a recommendation (estimates, not guarantees)."""
+
+    greeks: Greeks
+    var99_pct: DecimalStr
+    dd_pct: DecimalStr
+    unrealized_pnl_pct: DecimalStr
+    unrealized_pnl_usd: DecimalStr
+    liquidity_score: DecimalStr
+
+
+class EarnMetrics(CamelModel):
+    """Earn advisory metrics for earn-category actions (yields are estimates)."""
+
+    current_yield_pct: DecimalStr
+    protocol: str
+    chain: str
+    lockup_days: int
+    variable_rate: bool
+    risk_summary: str
+
+
 class Recommendation(CamelModel):
     rank: int
     action: Action
@@ -96,6 +128,8 @@ class Recommendation(CamelModel):
     liquidity_score: DecimalStr
     kelly_size_pct: DecimalStr
     half_kelly_size_pct: DecimalStr
+    risk_metrics: RiskMetrics
+    earn_metrics: EarnMetrics | None = None
     sentiment: SentimentScore | None = None
     stress_tests: StressTests | None = None
     reasons: str

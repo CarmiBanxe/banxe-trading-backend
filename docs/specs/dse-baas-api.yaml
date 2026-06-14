@@ -11,9 +11,17 @@ info:
     gamification. Self-custodial — the backend never holds keys. The terminal
     consumes the same engine via the internal POST /api/v1/dss/recommend.
 
+    Each recommendation also carries Risk & Earn advisory metrics (T7.3):
+    `riskMetrics` (Greeks, parametric VaR99, drawdown, unrealized PnL, liquidity)
+    and, for earn actions, `earnMetrics` (yield, protocol, chain, lockup, variable
+    flag, risk summary). These are ESTIMATES / simulations for partner UX (e.g. a
+    "risk card" or "yield comparison") — NOT a promise of return and NOT execution.
+    No new Risk/Earn execution endpoints are added; this stays inside the advisory
+    DSE endpoint. Per MiCA / MiFID II: advisory vs execution are kept separate.
+
     All monetary / metric fields are decimal strings (I-01). External providers
-    (sentiment / stress / quotes) are mock/fixture + env-gated this sprint. Kong
-    gateway, partner API keys, billing and rate limits are out of scope (S-later).
+    (sentiment / stress / quotes / risk / earn) are mock/fixture + env-gated this
+    sprint. Kong gateway, partner API keys, billing and rate limits are out of scope.
 paths:
   /v1/dss/recommend:
     post:
@@ -72,6 +80,7 @@ components:
           liquidityScore,
           kellySizePct,
           halfKellySizePct,
+          riskMetrics,
           reasons,
         ]
       additionalProperties: false
@@ -87,6 +96,13 @@ components:
         kellySizePct: { type: string, description: "Kelly f* as % (decimal)" }
         halfKellySizePct:
           { type: string, description: "Half-Kelly default sizing (decimal)" }
+        riskMetrics:
+          { $ref: "./dse-utility-api.yaml#/components/schemas/RiskMetrics" }
+        earnMetrics:
+          {
+            $ref: "./dse-utility-api.yaml#/components/schemas/EarnMetrics",
+            nullable: true,
+          }
         sentiment:
           {
             $ref: "./dse-utility-api.yaml#/components/schemas/SentimentScore",
