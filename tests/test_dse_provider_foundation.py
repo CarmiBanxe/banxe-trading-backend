@@ -28,7 +28,8 @@ _BODY = {"asset": "BTCUSDT", "portfolioValueUsd": "10000", "riskProfile": "balan
 # The stable top-level keys of the POST /v1/dss/recommend response (contract).
 _RESPONSE_KEYS = {
     "recommendations", "sentiment", "modelVersions", "disclaimer",
-    "analyticsContext", "traceId", "explanationVersion", "decisionTrace", "asOf",
+    "analyticsContext", "traceId", "explanationVersion", "decisionTrace",
+    "product", "asOf",
 }
 
 

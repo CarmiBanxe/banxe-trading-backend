@@ -100,6 +100,58 @@ components:
           { $ref: "./dse-utility-api.yaml#/components/schemas/UtilityWeights" }
         includeStressTests: { type: boolean, default: true }
         includeSentiment: { type: boolean, default: true }
+        partnerContext:
+          {
+            $ref: "#/components/schemas/PartnerContext",
+            nullable: true,
+            description: "S11 additive (optional): sandbox partner context; opt-in",
+          }
+    PartnerContext:
+      type: object
+      additionalProperties: false
+      description: >
+        S11 sandbox partner context — advisory, metering-READY only. Opaque,
+        bounded, non-secret. NO auth, NO billing, NO entitlement; only "sandbox"
+        mode is supported (non-sandbox fails closed → 422).
+      properties:
+        partnerId:
+          { type: string, nullable: true, maxLength: 64, pattern: "^[A-Za-z0-9._:-]+$" }
+        clientRef:
+          { type: string, nullable: true, maxLength: 64, pattern: "^[A-Za-z0-9._:-]+$" }
+        mode: { type: string, default: "sandbox", description: "only 'sandbox' supported" }
+    ProductMetadata:
+      type: object
+      additionalProperties: false
+      description: >
+        S11 partner/product-safe metadata — additive, opt-in (populated only when
+        the request supplies partnerContext). Safe provenance + normalized
+        model/version + explainability model + advisory flags. NO secrets.
+      required:
+        [
+          surface, engineMode, advisory, executes, selfCustodial, determinism,
+          providerProvenance, modelVersions, explanationVersion, explanationModel,
+          requestId, disclaimer,
+        ]
+      properties:
+        surface: { type: string }
+        engineMode: { type: string }
+        advisory: { type: boolean }
+        executes: { type: boolean }
+        selfCustodial: { type: boolean }
+        determinism: { type: string }
+        providerProvenance:
+          {
+            type: object,
+            additionalProperties: { type: string },
+            description: "domain → safe tier class (mock | stub | inert-live-ready)",
+          }
+        modelVersions: { $ref: "#/components/schemas/ModelVersions" }
+        explanationVersion: { type: string }
+        explanationModel: { type: string, description: "utility formula (doc-grade)" }
+        requestId: { type: string, description: "correlation id (= traceId); no billing" }
+        partner:
+          { $ref: "#/components/schemas/PartnerContext", nullable: true }
+        disclaimer: { type: string }
     Recommendation:
       type: object
       required:
@@ -273,6 +325,12 @@ components:
             $ref: "#/components/schemas/DecisionTrace",
             nullable: true,
             description: "T7.8 DEV-ONLY: opt-in sandbox decision-trace; double-gated (BANXE_DSE_DEBUG_ENABLED + X-Banxe-Dse-Debug header). null/absent in production",
+          }
+        product:
+          {
+            $ref: "#/components/schemas/ProductMetadata",
+            nullable: true,
+            description: "S11 additive: partner/product metadata; opt-in (null unless partnerContext is supplied). Non-breaking.",
           }
         asOf: { type: string, description: "ISO 8601 UTC" }
     DecisionTraceStep:

@@ -8,8 +8,14 @@ conformance test asserts model ↔ spec parity.
 from __future__ import annotations
 
 from enum import Enum
+from typing import Annotated
+
+from pydantic import Field
 
 from banxe_trading_backend.models import CamelModel, DecimalStr
+
+#: Bounded, charset-safe partner identifier (no secrets/PII; opaque, advisory).
+PartnerRef = Annotated[str, Field(max_length=64, pattern=r"^[A-Za-z0-9._:-]+$")]
 
 
 class ActionType(str, Enum):
@@ -245,6 +251,42 @@ class DecisionTrace(CamelModel):
     note: str
 
 
+class PartnerContext(CamelModel):
+    """Optional sandbox partner context (S11) — advisory, metering-READY only.
+
+    Opaque, bounded, non-secret correlation context. It carries NO auth, NO
+    billing, NO entitlement — only "sandbox" mode is supported (anything else
+    fails closed). Provided on the request; echoed back safely.
+    """
+
+    partner_id: PartnerRef | None = None
+    client_ref: PartnerRef | None = None
+    mode: str = "sandbox"  # only "sandbox" supported; non-sandbox fails closed
+
+
+class ProductMetadata(CamelModel):
+    """Partner/product-safe metadata block (S11) — additive, opt-in, NO secrets.
+
+    Populated only when the request supplies ``partnerContext``. Surfaces safe
+    provenance (tier class per domain), normalized model/version exposure, the
+    explainability model, advisory/self-custodial flags, and a correlation id.
+    """
+
+    surface: str
+    engine_mode: str
+    advisory: bool
+    executes: bool
+    self_custodial: bool
+    determinism: str
+    provider_provenance: dict[str, str]
+    model_versions: ModelVersions
+    explanation_version: str
+    explanation_model: str
+    request_id: str
+    partner: PartnerContext | None = None
+    disclaimer: str
+
+
 class RecommendRequest(CamelModel):
     asset: str
     portfolio_value_usd: DecimalStr
@@ -253,6 +295,8 @@ class RecommendRequest(CamelModel):
     custom_weights: UtilityWeights | None = None
     include_stress_tests: bool = True
     include_sentiment: bool = True
+    # S11 additive: optional sandbox partner context (advisory; opt-in).
+    partner_context: PartnerContext | None = None
 
 
 class RecommendResponse(CamelModel):
@@ -268,4 +312,6 @@ class RecommendResponse(CamelModel):
     explanation_version: str | None = None
     # T7.8 opt-in sandbox decision-trace (dev-only, double-gated; null in prod).
     decision_trace: DecisionTrace | None = None
+    # S11 additive: partner/product metadata (opt-in; null unless partnerContext).
+    product: ProductMetadata | None = None
     as_of: str
