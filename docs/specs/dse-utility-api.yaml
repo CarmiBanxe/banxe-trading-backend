@@ -1,0 +1,104 @@
+openapi: 3.0.3
+info:
+  title: BANXE DSE — Utility & Domain Model (T7.1)
+  version: 0.1.0
+  description: >
+    Decision Support Engine (DSE) domain model and utility function.
+
+    ADVISORY-ONLY: the DSE computes and *explains* recommendations. It never
+    signs, executes, or holds keys (self-custodial). No casino-effect /
+    gamification mechanics and no auto-execution are in scope (ADR-084).
+
+    Utility function (per candidate action a):
+      U_a = w1*ER_a - w2*sigma_a - w3*VaR99_a - w4*DD_a + w5*Liq_a
+    where ER=expected return, sigma=volatility, VaR99=99% Value-at-Risk,
+    DD=max drawdown (all as fractions), Liq=liquidity score in [0,1].
+    Weights come from a risk profile (conservative / balanced / aggressive)
+    or custom user weights.
+
+    Position sizing uses the Kelly criterion:
+      f* = (p*(b+1) - 1) / b   (clamped to [0,1])
+    where p = win rate and b = win/loss ratio. **Half-Kelly (f*/2) is the
+    hard-limit default** sizing surfaced to users.
+
+    All monetary / metric fields are decimal strings (Invariant I-01 — never
+    float). Sentiment and stress overlays are mock/fixture in this sprint;
+    real MiroFish (sentiment) and MicroFish CMS-VAE (stress) integrations are
+    separate, env-gated sprints.
+paths: {}
+components:
+  schemas:
+    ActionType:
+      type: string
+      enum:
+        [
+          BUY,
+          SELL,
+          SWAP,
+          OPEN_LONG,
+          OPEN_SHORT,
+          CLOSE,
+          ADJUST_SL,
+          STAKE,
+          REBALANCE,
+          HEDGE,
+          HOLD,
+          WAIT,
+        ]
+    ActionCategory:
+      type: string
+      enum: [spot, perp, earn, risk, meta]
+    RiskProfile:
+      type: string
+      enum: [conservative, balanced, aggressive, custom]
+    UtilityWeights:
+      type: object
+      description: Weights for the utility function. Decimal strings (I-01).
+      required:
+        [w1ExpectedReturn, w2Volatility, w3Var99, w4Drawdown, w5Liquidity]
+      additionalProperties: false
+      properties:
+        w1ExpectedReturn: { type: string, description: "weight on ER (decimal)" }
+        w2Volatility: { type: string }
+        w3Var99: { type: string }
+        w4Drawdown: { type: string }
+        w5Liquidity: { type: string }
+    Action:
+      type: object
+      required: [type, category, asset]
+      additionalProperties: false
+      properties:
+        type: { $ref: "#/components/schemas/ActionType" }
+        category: { $ref: "#/components/schemas/ActionCategory" }
+        asset: { type: string }
+        description: { type: string, nullable: true }
+    SentimentScore:
+      type: object
+      description: Aggregate sentiment in [-1,1] plus decomposition. Mock/fixture.
+      required: [score, news, onchain, social, modelVersion]
+      additionalProperties: false
+      properties:
+        score: { type: string, description: "S in [-1,1] (decimal)" }
+        news: { type: string }
+        onchain: { type: string }
+        social: { type: string }
+        modelVersion: { type: string }
+    StressScenario:
+      type: object
+      required: [name, pnlPct, explanation]
+      additionalProperties: false
+      properties:
+        name: { type: string }
+        pnlPct: { type: string, description: "scenario P&L % (decimal)" }
+        explanation: { type: string }
+    StressTests:
+      type: object
+      description: Fixed scenarios (mock/fixture this sprint).
+      required: [base, shockDown, shockUp, blackSwan, explanation]
+      additionalProperties: false
+      properties:
+        base: { $ref: "#/components/schemas/StressScenario" }
+        shockDown: { $ref: "#/components/schemas/StressScenario" }
+        shockUp: { $ref: "#/components/schemas/StressScenario" }
+        blackSwan: { $ref: "#/components/schemas/StressScenario" }
+        explanation: { type: string }

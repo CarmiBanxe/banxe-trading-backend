@@ -67,6 +67,15 @@ class Settings(BaseSettings):
     lifi_fee_bps: int = 0
     lifi_timeout_s: float = 10.0
 
+    # --- DSE (Decision Support Engine) — advisory-only, mock default (T7.1) ---
+    # ADVISORY-ONLY (ADR-084): no auto-execution, no signing, no key custody,
+    # no gamification. Only "mock" is implemented this sprint. Real sentiment
+    # (MiroFish) / stress (MicroFish CMS-VAE) providers are separate, env-gated
+    # sprints — these are seams, default "mock", no endpoints/keys committed.
+    dse_provider: str = "mock"
+    dse_sentiment_provider: str = "mock"
+    dse_stress_provider: str = "mock"
+
     # --- public (non-secret) URLs only ---
     # Real upstream URLs are injected via env at deploy time; defaults are local.
     orderbook_ws_url: str | None = None

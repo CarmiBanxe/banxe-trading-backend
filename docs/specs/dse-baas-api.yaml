@@ -1,0 +1,123 @@
+openapi: 3.0.3
+info:
+  title: BANXE DSE — BaaS Decision Support API (T7.1)
+  version: 0.1.0
+  description: >
+    BaaS / TaaS Tier-2 advisory endpoint. POST /v1/dss/recommend returns ranked,
+    explainable recommendations with utility scores, Kelly / Half-Kelly sizing,
+    and (mock) sentiment + stress overlays.
+
+    ADVISORY-ONLY (ADR-084): NO auto-execution, NO order signing, NO casino /
+    gamification. Self-custodial — the backend never holds keys. The terminal
+    consumes the same engine via the internal POST /api/v1/dss/recommend.
+
+    All monetary / metric fields are decimal strings (I-01). External providers
+    (sentiment / stress / quotes) are mock/fixture + env-gated this sprint. Kong
+    gateway, partner API keys, billing and rate limits are out of scope (S-later).
+paths:
+  /v1/dss/recommend:
+    post:
+      operationId: recommend
+      summary: Ranked explainable recommendations (advisory-only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecommendRequest" }
+      responses:
+        "200":
+          description: Ranked recommendations
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecommendResponse" }
+        "422":
+          description: Validation error
+components:
+  schemas:
+    Position:
+      type: object
+      required: [asset, sizeUsd, side]
+      additionalProperties: false
+      properties:
+        asset: { type: string }
+        sizeUsd: { type: string, description: "position size in USD (decimal)" }
+        side: { type: string, enum: [long, short, spot] }
+    RecommendRequest:
+      type: object
+      required: [asset, portfolioValueUsd]
+      additionalProperties: false
+      properties:
+        asset: { type: string, example: "BTCUSDT" }
+        portfolioValueUsd: { type: string, description: "decimal (I-01)" }
+        currentPositions:
+          type: array
+          items: { $ref: "#/components/schemas/Position" }
+        riskProfile:
+          { $ref: "./dse-utility-api.yaml#/components/schemas/RiskProfile" }
+        customWeights:
+          { $ref: "./dse-utility-api.yaml#/components/schemas/UtilityWeights" }
+        includeStressTests: { type: boolean, default: true }
+        includeSentiment: { type: boolean, default: true }
+    Recommendation:
+      type: object
+      required:
+        [
+          rank,
+          action,
+          utilityScore,
+          expectedReturnPct,
+          volatilityPct,
+          var99Pct,
+          maxDrawdownPct,
+          liquidityScore,
+          kellySizePct,
+          halfKellySizePct,
+          reasons,
+        ]
+      additionalProperties: false
+      properties:
+        rank: { type: integer }
+        action: { $ref: "./dse-utility-api.yaml#/components/schemas/Action" }
+        utilityScore: { type: string, description: "U_a (decimal)" }
+        expectedReturnPct: { type: string }
+        volatilityPct: { type: string }
+        var99Pct: { type: string }
+        maxDrawdownPct: { type: string }
+        liquidityScore: { type: string }
+        kellySizePct: { type: string, description: "Kelly f* as % (decimal)" }
+        halfKellySizePct:
+          { type: string, description: "Half-Kelly default sizing (decimal)" }
+        sentiment:
+          {
+            $ref: "./dse-utility-api.yaml#/components/schemas/SentimentScore",
+            nullable: true,
+          }
+        stressTests:
+          {
+            $ref: "./dse-utility-api.yaml#/components/schemas/StressTests",
+            nullable: true,
+          }
+        reasons: { type: string, description: "short explainable rationale" }
+    ModelVersions:
+      type: object
+      required: [pricing, sentiment, kelly, stress]
+      additionalProperties: false
+      properties:
+        pricing: { type: string }
+        sentiment: { type: string }
+        kelly: { type: string }
+        stress: { type: string }
+    RecommendResponse:
+      type: object
+      required: [recommendations, sentiment, modelVersions, disclaimer, asOf]
+      additionalProperties: false
+      properties:
+        recommendations:
+          type: array
+          items: { $ref: "#/components/schemas/Recommendation" }
+        sentiment:
+          { $ref: "./dse-utility-api.yaml#/components/schemas/SentimentScore" }
+        modelVersions: { $ref: "#/components/schemas/ModelVersions" }
+        disclaimer:
+          { type: string, description: "MiCA/MiFID advisory disclosure" }
+        asOf: { type: string, description: "ISO 8601 UTC" }
