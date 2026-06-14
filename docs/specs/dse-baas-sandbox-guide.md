@@ -39,6 +39,57 @@ curl -sS -X POST "$DSE_SANDBOX_BASE_URL/v1/dss/recommend" \
 The full request/response schema is the OpenAPI in `dse-baas-api.yaml`
 (+ `dse-utility-api.yaml`). All monetary/metric fields are **decimal strings**.
 
+## Enabling the DSE BaaS sandbox facade (T8.1)
+
+The external `POST /v1/dss/recommend` is a **thin, advisory-only, mock-only**
+facade over the same internal DSE engine that serves the terminal. It is
+**sandbox-gated** and **OFF by default** — production serves no external DSE BaaS.
+
+1. **Enable it (sandbox/dev only):** set the env flag and start the service:
+
+   ```bash
+   export BANXE_DSE_BAAS_SANDBOX_ENABLED=true
+   uvicorn banxe_trading_backend.app:app
+   ```
+
+   With the flag **off** (production default), every call to `/v1/dss/recommend`
+   returns **`503 {"detail":"DSE BaaS sandbox is disabled"}`**. Deployments should
+   additionally fence this route to sandbox/dev at the **ingress/host** layer.
+
+2. **Send a request** (no partner key needed in sandbox — mock data only):
+
+   ```bash
+   curl -sS -X POST "http://localhost:8000/v1/dss/recommend" \
+     -H "content-type: application/json" \
+     -d '{"asset":"BTCUSDT","portfolioValueUsd":"10000","riskProfile":"balanced",
+          "currentPositions":[{"asset":"BTCUSDT","sizeUsd":"8000","side":"long"}],
+          "includeSentiment":true,"includeStressTests":true}'
+   ```
+
+3. **Interpret the response:**
+   - `recommendations[]` — ranked, each with `utilityScore`, Kelly/Half-Kelly
+     sizing, `riskMetrics`, and (earn actions) `earnMetrics`.
+   - `recommendations[].utilityBreakdown` + `topDriver` — *why* the score (the
+     signed terms sum to `utilityScore`); render a waterfall / why-this-rank panel.
+   - `analyticsContext` — portfolio Greeks summary + informational earn alternatives.
+   - `traceId` — deterministic id for correlation.
+   - `decisionTrace` — present **only** when the debug gate is *also* on
+     (`BANXE_DSE_DEBUG_ENABLED=true` **and** header `X-Banxe-Dse-Debug: true`);
+     otherwise `null`. It reconstructs the full mock decision path for debugging.
+
+   ```bash
+   # full decision-trace (dev-only): both gates on
+   BANXE_DSE_BAAS_SANDBOX_ENABLED=true BANXE_DSE_DEBUG_ENABLED=true \
+     uvicorn banxe_trading_backend.app:app
+   curl -sS -X POST "http://localhost:8000/v1/dss/recommend" \
+     -H "content-type: application/json" -H "X-Banxe-Dse-Debug: true" \
+     -d '{"asset":"BTCUSDT","portfolioValueUsd":"10000"}'
+   ```
+
+**Advisory-only / no execution:** the facade ranks and explains; it never
+executes, signs, stakes, or holds keys. **No SLA, no billing, no rate limits**
+(future ODR). Self-custodial — the user confirms and signs any order themselves.
+
 ## Analytics enrichment (additive, informational) — T7.6
 
 `POST /v1/dss/recommend` **internally** consults the same sandbox Risk Greeks and

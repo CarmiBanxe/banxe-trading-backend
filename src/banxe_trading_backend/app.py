@@ -13,6 +13,7 @@ from fastapi import FastAPI
 from banxe_trading_backend import __version__
 from banxe_trading_backend.api import (
     auth_router,
+    baas_dss_router,
     dss_router,
     earn_router,
     orders_router,
@@ -122,6 +123,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(rate_router, prefix=api)
     app.include_router(symbols_router, prefix=api)
     app.include_router(orderbook_router)  # /ws/orderbook/{symbol}
+    # T8.1: external DSE BaaS sandbox facade at /v1/dss/recommend (NO api prefix).
+    # Always registered; gated at request time by BANXE_DSE_BAAS_SANDBOX_ENABLED
+    # (503 when off — production default serves no external DSE BaaS).
+    app.include_router(baas_dss_router)
 
     return app
 

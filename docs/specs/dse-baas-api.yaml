@@ -22,11 +22,23 @@ info:
     All monetary / metric fields are decimal strings (I-01). External providers
     (sentiment / stress / quotes / risk / earn) are mock/fixture + env-gated this
     sprint. Kong gateway, partner API keys, billing and rate limits are out of scope.
+
+    SANDBOX-ONLY (T8.1): the external facade POST /v1/dss/recommend is a thin,
+    advisory-only, MOCK-ONLY proxy over the internal DSE engine. It is served ONLY
+    when BANXE_DSE_BAAS_SANDBOX_ENABLED is true (sandbox/dev deployments); the
+    production default is OFF and every request then returns 503 "sandbox
+    disabled". There is NO SLA, NO billing, NO partner tiering and NO rate limits
+    (future ODR). Read-only and side-effect-free: it ranks and explains, it does
+    NOT execute. No partner API keys are required in sandbox.
 paths:
   /v1/dss/recommend:
     post:
       operationId: recommend
-      summary: Ranked explainable recommendations (advisory-only)
+      summary: Ranked explainable recommendations (advisory-only, SANDBOX-ONLY)
+      description: >
+        SANDBOX-ONLY advisory facade — gated by BANXE_DSE_BAAS_SANDBOX_ENABLED.
+        WARNING: advisory decision-support only; it performs NO execution, signing,
+        staking or wallet action and carries NO SLA/billing. Mock data only.
       requestBody:
         required: true
         content:
@@ -34,12 +46,14 @@ paths:
             schema: { $ref: "#/components/schemas/RecommendRequest" }
       responses:
         "200":
-          description: Ranked recommendations
+          description: Ranked recommendations (advisory, sandbox-mock)
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RecommendResponse" }
         "422":
           description: Validation error
+        "503":
+          description: DSE BaaS sandbox is disabled (BANXE_DSE_BAAS_SANDBOX_ENABLED off)
 components:
   schemas:
     Position:
