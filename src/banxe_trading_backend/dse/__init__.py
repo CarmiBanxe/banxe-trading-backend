@@ -30,6 +30,13 @@ from .models import (
     UtilityWeights,
 )
 from .profiles import AGGRESSIVE, BALANCED, CONSERVATIVE, weights_for
+from .provider_layer import (
+    LiveProviderNotWiredError,
+    ProviderMode,
+    ProviderProfile,
+    assert_mock_only,
+    provider_profile,
+)
 from .providers import (
     MockSentimentProvider,
     MockStressProvider,
@@ -74,4 +81,9 @@ __all__ = [
     "MockStressProvider",
     "build_sentiment_provider",
     "build_stress_provider",
+    "ProviderMode",
+    "ProviderProfile",
+    "LiveProviderNotWiredError",
+    "provider_profile",
+    "assert_mock_only",
 ]

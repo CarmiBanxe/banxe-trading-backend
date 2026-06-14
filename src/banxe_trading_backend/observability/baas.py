@@ -39,6 +39,7 @@ class BaasMetrics:
         self._latency_sum_ms: dict[tuple[str, str], float] = defaultdict(float)
         self._latency_count: dict[tuple[str, str], int] = defaultdict(int)
         self._top_action: dict[str, int] = defaultdict(int)
+        self._by_mode: dict[str, int] = defaultdict(int)
         self._debug_requests = 0
         self._total = 0
 
@@ -51,12 +52,14 @@ class BaasMetrics:
         latency_ms: float,
         top_action_type: str | None = None,
         debug: bool = False,
+        provider_mode: str = "mock",
     ) -> None:
         with self._lock:
             self._total += 1
             self._requests[(asset, risk_profile, status)] += 1
             self._latency_sum_ms[(asset, risk_profile)] += latency_ms
             self._latency_count[(asset, risk_profile)] += 1
+            self._by_mode[provider_mode] += 1
             if top_action_type is not None:
                 self._top_action[top_action_type] += 1
             if debug:
@@ -104,6 +107,12 @@ class BaasMetrics:
             lines.append("# HELP dse_baas_debug_requests_total Requests that opted into debug.")
             lines.append("# TYPE dse_baas_debug_requests_total counter")
             lines.append(f"dse_baas_debug_requests_total {self._debug_requests}")
+            lines.append(
+                "# HELP dse_baas_requests_by_mode_total Requests by DSE provider mode."
+            )
+            lines.append("# TYPE dse_baas_requests_by_mode_total counter")
+            for mode, n in sorted(self._by_mode.items()):
+                lines.append(f'dse_baas_requests_by_mode_total{{provider_mode="{_esc(mode)}"}} {n}')
         return "\n".join(lines) + "\n"
 
 
@@ -116,7 +125,9 @@ def log_baas_event(event: dict[str, Any]) -> None:
     _LOG.info(json.dumps(event, separators=(",", ":"), sort_keys=True))
 
 
-async def dse_baas_health(*, sandbox_enabled: bool, engine: DseEngine) -> dict[str, Any]:
+async def dse_baas_health(
+    *, sandbox_enabled: bool, engine: DseEngine, provider_mode: str = "mock"
+) -> dict[str, Any]:
     """Internal readiness check: flag + a no-network mock dry-run of the DSE.
 
     Returns an aggregated status (OK | DEGRADED | ERROR) and a short summary.
@@ -125,7 +136,7 @@ async def dse_baas_health(*, sandbox_enabled: bool, engine: DseEngine) -> dict[s
     """
     from banxe_trading_backend.dse import RecommendRequest
 
-    checks: dict[str, Any] = {"sandboxEnabled": sandbox_enabled}
+    checks: dict[str, Any] = {"sandboxEnabled": sandbox_enabled, "providerMode": provider_mode}
     status = "OK" if sandbox_enabled else "DEGRADED"
     try:
         resp = await engine.recommend(

@@ -90,6 +90,33 @@ facade over the same internal DSE engine that serves the terminal. It is
 executes, signs, stakes, or holds keys. **No SLA, no billing, no rate limits**
 (future ODR). Self-custodial — the user confirms and signs any order themselves.
 
+## Data providers & modes (T8.3)
+
+The DSE reads through a **provider-layer** over four data-source domains, each
+with an env-selectable seam, plus an overall mode:
+
+| Domain | Provider env | Today | Future (ODR) |
+|---|---|---|---|
+| Market / risk (vol, VaR, drawdown, liquidity) | `BANXE_DSE_MARKET_PROVIDER` | `mock` | live market data |
+| Sentiment (news / on-chain / social) | `BANXE_DSE_SENTIMENT_PROVIDER` | `mock` | live sentiment |
+| Stress-test data | `BANXE_DSE_STRESS_PROVIDER` | `mock` | live stress |
+| Earn / yield | `BANXE_DSE_EARN_PROVIDER` | `mock` | live yields |
+| **Overall mode** | `BANXE_DSE_PROVIDER_MODE` | `mock` | `sandbox-live` / `prod-live` |
+
+There are also empty placeholder seams for future live credentials/endpoints
+(`BANXE_DSE_<DOMAIN>_API_KEY`, `BANXE_DSE_<DOMAIN>_BASE_URL`) — **empty by default
+and never set in code**.
+
+**Today only `mock` is implemented and is the default everywhere.** T8.3 adds the
+configuration + architectural seams and **safety-rails** only — it activates no
+live provider and changes no behaviour. Any non-mock provider or mode is an
+**OPERATOR DECISION (ODR)** requiring compliance sign-off (MiCA / BaaS); the
+service **refuses to start** with a non-mock configuration until a live
+implementation is wired in a future ODR sprint. The request/response **contract is
+identical across modes** — no provider-specific fields are added. Observability
+carries a safe `providerMode` (e.g. `mock`) so a future mock-vs-live switch is
+distinguishable in logs/metrics, with no secrets exposed.
+
 ## Analytics enrichment (additive, informational) — T7.6
 
 `POST /v1/dss/recommend` **internally** consults the same sandbox Risk Greeks and
