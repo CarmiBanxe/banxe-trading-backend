@@ -123,6 +123,12 @@ class Settings(BaseSettings):
     # no live venue, no keys, no execution.
     mm_provider: str = "mock"
 
+    # --- Dynamic fee engine seam (S13 / X9.2) — advisory/analytics, mock-only ---
+    # Fee-attribution provider for POST /api/v1/fees/preview. Only "mock" is wired
+    # and default; any other value is OPERATOR-GATED (live fee/billing source is
+    # ODR) and fails closed at startup. Analytics-only: NO real billing/charges.
+    fee_provider: str = "mock"
+
     # --- read-only Risk/Earn BaaS sandbox surface (T7.5) ---
     # GET /v1/risk/greeks + GET /v1/earn/rates — advisory, READ-ONLY, sandbox.
     # Mock by default (deterministic, no network/keys). Real providers are

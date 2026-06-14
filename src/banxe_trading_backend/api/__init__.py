@@ -7,6 +7,7 @@ from .dss import get_dse_engine
 from .dss import router as dss_router
 from .earn import router as earn_router
 from .execution import router as execution_router
+from .fees import router as fees_router
 from .internal import router as internal_router
 from .market_making import router as market_making_router
 from .orders import router as orders_router
@@ -33,4 +34,5 @@ __all__ = [
     "internal_router",
     "execution_router",
     "market_making_router",
+    "fees_router",
 ]
