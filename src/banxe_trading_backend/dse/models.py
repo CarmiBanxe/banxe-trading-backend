@@ -117,6 +117,46 @@ class EarnMetrics(CamelModel):
     risk_summary: str
 
 
+class EarnAlternative(CamelModel):
+    """An informational sandbox earn alternative surfaced in DSE reasoning (T7.6).
+
+    Derived from the internal sandbox Earn rates catalogue — yields are estimates
+    / simulations, NOT a promise of return and NOT an execution offer.
+    """
+
+    asset: str
+    protocol: str
+    apy_pct: DecimalStr
+    lockup_days: int
+    risk_band: str
+    source: str
+
+
+class GreeksSummary(CamelModel):
+    """Portfolio-level Greeks summary used as an advisory enrichment (T7.6)."""
+
+    greeks: Greeks
+    notional_usd: DecimalStr
+    side: str
+    directional_exposure: str  # qualitative: low | elevated | high
+    notes: list[str]
+    source: str
+
+
+class AnalyticsContext(CamelModel):
+    """Optional, additive DSE analytics enrichment (T7.6, sandbox-mock).
+
+    Internal-only composition of the T7.5 Risk Greeks / Earn rates sandbox
+    services. Informational explanation context — it does NOT add execution and
+    does NOT change the public endpoint surface.
+    """
+
+    greeks_summary: GreeksSummary | None = None
+    earn_alternatives: list[EarnAlternative] | None = None
+    analytics_version: str
+    source: str
+
+
 class Recommendation(CamelModel):
     rank: int
     action: Action
@@ -133,6 +173,9 @@ class Recommendation(CamelModel):
     sentiment: SentimentScore | None = None
     stress_tests: StressTests | None = None
     reasons: str
+    # T7.6 additive enrichment (optional, sandbox-mock-derived; explanation-only).
+    risk_notes: list[str] | None = None
+    alternatives: list[EarnAlternative] | None = None
 
 
 class ModelVersions(CamelModel):
@@ -157,4 +200,6 @@ class RecommendResponse(CamelModel):
     sentiment: SentimentScore
     model_versions: ModelVersions
     disclaimer: str
+    # T7.6 additive enrichment (optional; absent/null when no portfolio context).
+    analytics_context: AnalyticsContext | None = None
     as_of: str

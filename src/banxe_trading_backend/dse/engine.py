@@ -18,10 +18,15 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 from banxe_trading_backend.earn import (
     EarnRatesProvider,
     build_earn_provider,
+    build_earn_rates_catalog,
 )
 from banxe_trading_backend.risk import (
     RiskMetricsProvider,
+    build_risk_greeks_provider,
     build_risk_provider,
+)
+from banxe_trading_backend.services.dss_analytics_enrichment import (
+    DseAnalyticsEnrichmentService,
 )
 
 from .kelly import half_kelly_fraction, kelly_fraction
@@ -29,6 +34,7 @@ from .models import (
     Action,
     ActionCategory,
     ActionType,
+    AnalyticsContext,
     EarnMetrics,
     Greeks,
     ModelVersions,
@@ -146,6 +152,7 @@ class MockDseEngine:
         stress_provider: StressProvider | None = None,
         risk_provider: RiskMetricsProvider | None = None,
         earn_provider: EarnRatesProvider | None = None,
+        enrichment: DseAnalyticsEnrichmentService | None = None,
         quote_port: QuotePort | None = None,
         market_data: MarketDataPort | None = None,
         exchange: ExchangePort | None = None,
@@ -158,6 +165,8 @@ class MockDseEngine:
         self._stress: StressProvider = stress_provider or MockStressProvider()
         self._risk = risk_provider
         self._earn = earn_provider
+        # T7.6 internal analytics enrichment (sandbox-mock; explanation-only).
+        self._enrichment = enrichment
         self._quote_port = quote_port
         self._market_data = market_data
         self._exchange = exchange
@@ -166,11 +175,21 @@ class MockDseEngine:
     @classmethod
     def from_settings(cls, settings: Settings, *, quote: QuotePort | None = None) -> MockDseEngine:
         # Provider seams selected by env (mock by default; real providers gated).
+        # T7.6: internal-only enrichment composes the T7.5 sandbox Risk Greeks +
+        # Earn rates services in-process (no HTTP self-calls, mock default).
+        enrichment = DseAnalyticsEnrichmentService(
+            greeks_provider=build_risk_greeks_provider(settings.risk_greeks_provider),
+            earn_catalog=build_earn_rates_catalog(
+                settings.earn_rates_provider,
+                build_earn_provider(settings.dse_earn_provider),
+            ),
+        )
         return cls(
             sentiment_provider=build_sentiment_provider(settings.dse_sentiment_provider),
             stress_provider=build_stress_provider(settings.dse_stress_provider),
             risk_provider=build_risk_provider(settings.dse_risk_provider),
             earn_provider=build_earn_provider(settings.dse_earn_provider),
+            enrichment=enrichment,
             quote_port=quote,
         )
 
@@ -223,13 +242,24 @@ class MockDseEngine:
             recs.append((u, rec))
 
         # Rank by utility descending (stable for ties), assign 1-based rank.
+        # NOTE (T7.6): enrichment is explanation-only — it does NOT re-rank; the
+        # established utility framework drives ordering unchanged.
         recs.sort(key=lambda item: item[0], reverse=True)
         ranked = [rec.model_copy(update={"rank": i + 1}) for i, (_, rec) in enumerate(recs)]
+
+        # T7.6: additive internal analytics enrichment (sandbox-mock). Graceful —
+        # absent when there is no enrichment service or no portfolio context.
+        analytics: AnalyticsContext | None = None
+        if self._enrichment is not None:
+            analytics = await self._enrichment.context(request)
+            if analytics is not None:
+                ranked = [self._enrichment.enrich_recommendation(rec, analytics) for rec in ranked]
 
         return RecommendResponse(
             recommendations=ranked,
             sentiment=sentiment,
             model_versions=_MODEL_VERSIONS,
             disclaimer=_DISCLAIMER,
+            analytics_context=analytics,
             as_of=self._now(),
         )

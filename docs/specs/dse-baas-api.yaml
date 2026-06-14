@@ -114,6 +114,61 @@ components:
             nullable: true,
           }
         reasons: { type: string, description: "short explainable rationale" }
+        riskNotes:
+          {
+            type: array,
+            items: { type: string },
+            nullable: true,
+            description: "T7.6 additive: Greeks-derived advisory notes (sandbox-mock); explanation-only",
+          }
+        alternatives:
+          {
+            type: array,
+            items: { $ref: "#/components/schemas/EarnAlternative" },
+            nullable: true,
+            description: "T7.6 additive: informational sandbox earn alternatives; NOT execution",
+          }
+    EarnAlternative:
+      type: object
+      required: [asset, protocol, apyPct, lockupDays, riskBand, source]
+      additionalProperties: false
+      properties:
+        asset: { type: string }
+        protocol: { type: string }
+        apyPct: { type: string, description: "annual percentage yield (decimal, I-01)" }
+        lockupDays: { type: integer }
+        riskBand: { type: string, enum: [low, medium, high] }
+        source: { type: string, enum: [sandbox-mock] }
+    GreeksSummary:
+      type: object
+      required: [greeks, notionalUsd, side, directionalExposure, notes, source]
+      additionalProperties: false
+      properties:
+        greeks: { $ref: "./dse-utility-api.yaml#/components/schemas/Greeks" }
+        notionalUsd: { type: string, description: "net notional USD (decimal)" }
+        side: { type: string, enum: [long, short, spot] }
+        directionalExposure: { type: string, enum: [low, elevated, high] }
+        notes: { type: array, items: { type: string } }
+        source: { type: string, enum: [sandbox-mock] }
+    AnalyticsContext:
+      type: object
+      required: [analyticsVersion, source]
+      additionalProperties: false
+      description: >
+        T7.6 additive, OPTIONAL DSE analytics enrichment — internal-only
+        composition of the T7.5 sandbox Risk Greeks / Earn rates services.
+        Informational explanation context; NO execution, NO new public endpoint.
+      properties:
+        greeksSummary:
+          { $ref: "#/components/schemas/GreeksSummary", nullable: true }
+        earnAlternatives:
+          {
+            type: array,
+            items: { $ref: "#/components/schemas/EarnAlternative" },
+            nullable: true,
+          }
+        analyticsVersion: { type: string, description: "enrichment traceability tag" }
+        source: { type: string, enum: [sandbox-mock] }
     ModelVersions:
       type: object
       required: [pricing, sentiment, kelly, stress]
@@ -136,4 +191,10 @@ components:
         modelVersions: { $ref: "#/components/schemas/ModelVersions" }
         disclaimer:
           { type: string, description: "MiCA/MiFID advisory disclosure" }
+        analyticsContext:
+          {
+            $ref: "#/components/schemas/AnalyticsContext",
+            nullable: true,
+            description: "T7.6 additive: optional sandbox analytics enrichment",
+          }
         asOf: { type: string, description: "ISO 8601 UTC" }

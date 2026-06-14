@@ -39,6 +39,55 @@ curl -sS -X POST "$DSE_SANDBOX_BASE_URL/v1/dss/recommend" \
 The full request/response schema is the OpenAPI in `dse-baas-api.yaml`
 (+ `dse-utility-api.yaml`). All monetary/metric fields are **decimal strings**.
 
+## Analytics enrichment (additive, informational) — T7.6
+
+`POST /v1/dss/recommend` **internally** consults the same sandbox Risk Greeks and
+Earn rates analytics (the T7.5 services) to make its advisory reasoning richer.
+**No new endpoint, no contract break** — the response simply gains **optional,
+additive** fields you may render or ignore. They are **sandbox/mock-derived and
+informational only** — not execution, not a promise of return.
+
+New optional fields:
+
+- `analyticsContext.greeksSummary` — portfolio-level Greeks for your net position
+  in the asset, plus a qualitative `directionalExposure` (low / elevated / high)
+  and human-readable `notes`. Present only when `currentPositions` give enough
+  context; otherwise `null` (graceful degrade).
+- `analyticsContext.earnAlternatives` — an informational "where idle capital could
+  sit" yield comparison (sorted by APY).
+- `recommendations[].riskNotes` — Greeks-derived advisory notes on tradable ideas.
+- `recommendations[].alternatives` — earn alternatives surfaced next to
+  capital-preservation actions (HOLD / WAIT / HEDGE / STAKE).
+
+**Before** (request without positions) → `analyticsContext.greeksSummary` is
+`null`; recommendations carry no `riskNotes`/`alternatives`.
+
+**After** (request *with* `currentPositions`):
+
+```json
+{
+  "recommendations": [
+    { "rank": 1, "action": { "type": "OPEN_LONG", "category": "perp", "asset": "BTCUSDT" },
+      "riskNotes": ["High directional exposure (delta 0.8000) on BTCUSDT; consider hedging or sizing down."],
+      "...": "..." },
+    { "rank": 5, "action": { "type": "HOLD", "category": "meta", "asset": "BTCUSDT" },
+      "alternatives": [ { "asset": "USDC", "protocol": "mock-lending", "apyPct": "5.0000",
+        "lockupDays": 0, "riskBand": "low", "source": "sandbox-mock" } ] }
+  ],
+  "analyticsContext": {
+    "greeksSummary": { "directionalExposure": "high", "side": "long",
+      "greeks": { "delta": "0.8000", "gamma": "0.0160", "vega": "0.0800", "theta": "-0.0080", "rho": "0.0080" },
+      "notionalUsd": "8000.00", "notes": ["..."], "source": "sandbox-mock" },
+    "earnAlternatives": [ { "asset": "USDC", "apyPct": "5.0000", "riskBand": "low", "source": "sandbox-mock" } ],
+    "analyticsVersion": "dss-analytics-enrichment-0.1.0", "source": "sandbox-mock"
+  }
+}
+```
+
+**Treat these fields as informational only:** show the notes/alternatives in your
+UI as context; **do not** auto-execute, auto-hedge, or auto-stake. The endpoint
+remains advisory and self-custodial, and the public BaaS surface is **unchanged**.
+
 ## Walkthroughs
 
 ### 1. Risk card + recommendation (neobank)
