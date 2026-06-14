@@ -17,6 +17,7 @@ from banxe_trading_backend.ports import (
     QuantPreviewRequest,
     QuantPreviewResponse,
 )
+from banxe_trading_backend.services.decision_lineage import record_lineage
 
 router = APIRouter(prefix="/quant", tags=["quant"])
 
@@ -35,4 +36,7 @@ async def quant_preview(body: QuantPreviewRequest, request: Request) -> QuantPre
         raise HTTPException(status_code=422, detail="notionalUsd must be > 0")
 
     engine: QuantEnginePort = request.app.state.quant
-    return engine.compute(body)
+    response = engine.compute(body)
+    # G1L: inert audit capture (fail-closed; never changes the response).
+    record_lineage(request, layer="QUANT_PREVIEW", body=body, response=response)
+    return response

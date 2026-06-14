@@ -63,6 +63,7 @@ from banxe_trading_backend.ports import (
     build_quant_provider,
 )
 from banxe_trading_backend.risk import RiskGreeksProvider, build_risk_greeks_provider
+from banxe_trading_backend.services.decision_lineage import build_decision_lineage_logger
 from banxe_trading_backend.services.intent_preview import build_execution_preview_provider
 from banxe_trading_backend.ws import orderbook_router
 
@@ -169,6 +170,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.execution_preview_provider = build_execution_preview_provider(
         settings.execution_preview_provider
     )
+    # G1L: inert, mock-safe decision-lineage audit logger (fail-closed; no provider,
+    # no keys, no network, no new endpoint). Default enabled; no-op when disabled.
+    app.state.decision_lineage_logger = build_decision_lineage_logger(settings)
 
     @app.get("/healthz", tags=["health"])
     async def healthz() -> dict[str, str]:

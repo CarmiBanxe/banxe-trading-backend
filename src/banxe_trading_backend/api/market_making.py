@@ -24,6 +24,7 @@ from banxe_trading_backend.ports import (
     MmPreviewRequest,
     MmPreviewResponse,
 )
+from banxe_trading_backend.services.decision_lineage import record_lineage
 
 from .deps import get_exchange
 
@@ -86,7 +87,7 @@ async def mm_preview(
         levels=body.levels,
         size_usd=size,
     )
-    return MmPreviewResponse(
+    response = MmPreviewResponse(
         asset=body.asset,
         mid=str(mid.quantize(Decimal("0.01"))),
         mode="sandbox-mock",
@@ -96,3 +97,6 @@ async def mm_preview(
         source="sandbox-mock",
         disclaimer=_DISCLAIMER,
     )
+    # G1L: inert audit capture (fail-closed; never changes the response).
+    record_lineage(request, layer="MM_PREVIEW", body=body, response=response)
+    return response
