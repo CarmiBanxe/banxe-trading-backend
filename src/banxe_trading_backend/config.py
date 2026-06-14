@@ -116,6 +116,13 @@ class Settings(BaseSettings):
     # DECISION REQUIRED + compliance, MiCA / BaaS). Never set true in code/CI.
     dse_live_allowed: bool = False
 
+    # --- Market-making advisory seam (S12 / X9.1) — mock-only, OFF-by-default ---
+    # Strategy provider for POST /api/v1/mm/preview. Only "mock" is wired and is
+    # the default; any other value is OPERATOR-GATED (a live strategy host such as
+    # a Hummingbot sidecar is ODR) and fails closed at startup. Advisory/unsigned;
+    # no live venue, no keys, no execution.
+    mm_provider: str = "mock"
+
     # --- read-only Risk/Earn BaaS sandbox surface (T7.5) ---
     # GET /v1/risk/greeks + GET /v1/earn/rates — advisory, READ-ONLY, sandbox.
     # Mock by default (deterministic, no network/keys). Real providers are

@@ -18,6 +18,7 @@ from banxe_trading_backend.api import (
     earn_router,
     execution_router,
     internal_router,
+    market_making_router,
     orders_router,
     quotes_router,
     rate_router,
@@ -47,10 +48,12 @@ from banxe_trading_backend.ports import (
     InMemoryMockMarketData,
     LifiQuoteAdapter,
     MarketDataPort,
+    MarketMakingPort,
     MockQuoteAdapter,
     QuotePort,
     SiweAuthAdapter,
     WalletAuthPort,
+    build_mm_provider,
 )
 from banxe_trading_backend.risk import RiskGreeksProvider, build_risk_greeks_provider
 from banxe_trading_backend.ws import orderbook_router
@@ -97,6 +100,12 @@ def _build_earn_rates(settings: Settings) -> EarnRatesCatalog:
     return build_earn_rates_catalog(settings.earn_rates_provider, provider)
 
 
+def _build_mm(settings: Settings) -> MarketMakingPort:
+    # S12 market-making advisory strategy — mock default; non-mock fails closed
+    # (operator-gated: a live strategy host is ODR). Advisory/unsigned only.
+    return build_mm_provider(settings.mm_provider)
+
+
 def _build_quote(settings: Settings) -> QuotePort:
     # Provider-parameterized. Default "mock" → deterministic, no network.
     # "lifi" → public LI.FI quote API (no key; ADR-083 S6.5); constructed lazily
@@ -130,6 +139,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.wallet_auth = _build_wallet_auth(settings)
     # T8.2: internal DSE BaaS observability counters (in-process; Prometheus text).
     app.state.baas_metrics = BaasMetrics()
+    # S12: market-making advisory strategy (mock default; non-mock fails closed).
+    app.state.mm = _build_mm(settings)
 
     @app.get("/healthz", tags=["health"])
     async def healthz() -> dict[str, str]:
@@ -154,6 +165,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # T8.2: internal-only observability/readiness (excluded from OpenAPI; fence at
     # ingress). /internal/health/dse-baas + /internal/metrics/dse-baas.
     app.include_router(internal_router)
+    # S12: internal market-making advisory preview (mock/sandbox; NOT external /v1).
+    app.include_router(market_making_router, prefix=api)
 
     return app
 

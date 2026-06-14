@@ -33,6 +33,14 @@ from .lifi_quote import (
     map_lifi_quote,
 )
 from .market_data_port import InMemoryMockMarketData, MarketDataPort
+from .market_making_port import (
+    MarketMakingPort,
+    MmPreviewRequest,
+    MmPreviewResponse,
+    MmRung,
+    MockMarketMakingStrategy,
+    build_mm_provider,
+)
 from .quote_port import MockQuoteAdapter, QuotePort
 from .wallet_auth_port import SiweAuthAdapter, WalletAuthError, WalletAuthPort
 
@@ -56,6 +64,12 @@ __all__ = [
     "PartialFillTimeout",
     "MarketDataPort",
     "InMemoryMockMarketData",
+    "MarketMakingPort",
+    "MockMarketMakingStrategy",
+    "MmPreviewRequest",
+    "MmPreviewResponse",
+    "MmRung",
+    "build_mm_provider",
     "QuotePort",
     "MockQuoteAdapter",
     "LifiQuoteAdapter",
