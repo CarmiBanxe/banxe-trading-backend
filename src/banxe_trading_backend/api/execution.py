@@ -16,6 +16,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from banxe_trading_backend.ports import ExchangePort
+from banxe_trading_backend.services.decision_lineage import record_lineage
 from banxe_trading_backend.services.intent_preview import (
     IntentPreviewRequest,
     IntentPreviewResponse,
@@ -30,12 +31,15 @@ router = APIRouter(prefix="/execution", tags=["execution"])
 @router.post("/intent-preview", response_model=IntentPreviewResponse)
 async def intent_preview(
     body: IntentPreviewRequest,
-    request: Request,  # noqa: ARG001 - kept for symmetry / future gating
+    request: Request,
     exchange: ExchangePort = Depends(get_exchange),
 ) -> IntentPreviewResponse:
     service = IntentPreviewService(exchange)
     try:
-        return await service.preview(body)
+        response = await service.preview(body)
     except ValueError as exc:
         # invalid asset / non-positive notional / submit safety-rail
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    # G1L: inert audit capture (fail-closed; never changes the response).
+    record_lineage(request, layer="EXECUTION_PREVIEW", body=body, response=response)
+    return response

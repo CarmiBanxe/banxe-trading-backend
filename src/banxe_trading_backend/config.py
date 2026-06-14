@@ -143,6 +143,15 @@ class Settings(BaseSettings):
     # unsigned and not submitted; no live chain, no keys.
     execution_preview_provider: str = "mock"
 
+    # --- Decision-lineage / audit logging scaffold (G1L) — inert, mock-safe ---
+    # When True (default), the advisory seams (DSE / mm / fees / quant / execution-
+    # preview) emit an append-only audit event per request for a future MiCA / AML
+    # audit. It is pure logging: NO live provider, NO keys, NO network, NO new
+    # endpoint, NO contract change, and fail-closed (a sink error never affects the
+    # response). False makes the logger a silent no-op. This is NOT a legally
+    # sufficient audit; the final store/retention/PII policy is OPERATOR / MLRO (ADR-095).
+    decision_lineage_enabled: bool = True
+
     # --- read-only Risk/Earn BaaS sandbox surface (T7.5) ---
     # GET /v1/risk/greeks + GET /v1/earn/rates — advisory, READ-ONLY, sandbox.
     # Mock by default (deterministic, no network/keys). Real providers are

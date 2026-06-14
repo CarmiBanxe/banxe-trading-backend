@@ -19,6 +19,7 @@ from banxe_trading_backend.ports import (
     FeePreviewRequest,
     FeePreviewResponse,
 )
+from banxe_trading_backend.services.decision_lineage import record_lineage
 
 router = APIRouter(prefix="/fees", tags=["fees"])
 
@@ -44,7 +45,7 @@ async def fees_preview(body: FeePreviewRequest, request: Request) -> FeePreviewR
     components = engine.compute(body)
     total_bps = sum((Decimal(c.bps) for c in components), Decimal(0))
     total_usd = sum((Decimal(c.usd) for c in components), Decimal(0))
-    return FeePreviewResponse(
+    response = FeePreviewResponse(
         mode="sandbox-mock",
         signed=False,
         submitted=False,
@@ -55,3 +56,6 @@ async def fees_preview(body: FeePreviewRequest, request: Request) -> FeePreviewR
         components=components,
         disclaimer=_DISCLAIMER,
     )
+    # G1L: inert audit capture (fail-closed; never changes the response).
+    record_lineage(request, layer="FEE_PREVIEW", body=body, response=response)
+    return response

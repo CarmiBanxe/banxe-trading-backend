@@ -11,6 +11,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
 from banxe_trading_backend.dse import DseEngine, RecommendRequest, RecommendResponse
+from banxe_trading_backend.services.decision_lineage import record_lineage
 
 _DEBUG_TRUTHY = {"1", "true", "yes", "on"}
 
@@ -27,6 +28,7 @@ router = APIRouter(prefix="/dss", tags=["dss"])
 @router.post("/recommend", response_model=RecommendResponse)
 async def recommend(
     body: RecommendRequest,
+    request: Request,
     engine: DseEngine = Depends(get_dse_engine),
     x_banxe_dse_debug: str | None = Header(default=None),
 ) -> RecommendResponse:
@@ -35,7 +37,10 @@ async def recommend(
     # production never returns a trace regardless of this header.
     debug = (x_banxe_dse_debug or "").strip().lower() in _DEBUG_TRUTHY
     try:
-        return await engine.recommend(body, debug=debug)
+        response = await engine.recommend(body, debug=debug)
     except ValueError as exc:
         # e.g. riskProfile 'custom' without customWeights.
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    # G1L: inert audit capture (fail-closed; never changes the response).
+    record_lineage(request, layer="DSE", body=body, response=response)
+    return response
