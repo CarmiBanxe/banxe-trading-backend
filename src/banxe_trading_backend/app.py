@@ -20,6 +20,7 @@ from banxe_trading_backend.api import (
     fees_router,
     internal_router,
     market_making_router,
+    marketplace_router,
     orders_router,
     quant_router,
     quotes_router,
@@ -193,6 +194,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(fees_router, prefix=api)
     # S14: internal quant-moat preview (advisory analytics; NOT external /v1).
     app.include_router(quant_router, prefix=api)
+    # S15: internal ecosystem/marketplace registry (read-only; NOT external /v1).
+    app.include_router(marketplace_router, prefix=api)
 
     return app
 

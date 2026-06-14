@@ -10,6 +10,7 @@ from .execution import router as execution_router
 from .fees import router as fees_router
 from .internal import router as internal_router
 from .market_making import router as market_making_router
+from .marketplace import router as marketplace_router
 from .orders import router as orders_router
 from .quant import router as quant_router
 from .quotes import router as quotes_router
@@ -37,4 +38,5 @@ __all__ = [
     "market_making_router",
     "fees_router",
     "quant_router",
+    "marketplace_router",
 ]
