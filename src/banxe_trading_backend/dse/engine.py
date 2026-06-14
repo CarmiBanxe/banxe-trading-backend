@@ -36,6 +36,8 @@ from .models import (
     ActionCategory,
     ActionType,
     AnalyticsContext,
+    DecisionTrace,
+    DecisionTraceStep,
     EarnMetrics,
     Greeks,
     ModelVersions,
@@ -65,7 +67,9 @@ if TYPE_CHECKING:
 class DseEngine(Protocol):
     """Compute ranked, explainable recommendations (advisory-only)."""
 
-    async def recommend(self, request: RecommendRequest) -> RecommendResponse: ...
+    async def recommend(
+        self, request: RecommendRequest, *, debug: bool = False
+    ) -> RecommendResponse: ...
 
 
 # --- deterministic stub candidate set (asset-agnostic; mock data) ----------- #
@@ -151,6 +155,11 @@ def _breakdown(terms: list[UtilityTerm]) -> tuple[list[UtilityComponent], str]:
     return components, top.factor
 
 
+def _provider_name(provider: object | None) -> str:
+    """Class name of a wired provider (or 'none') — for the debug trace. Not a secret."""
+    return type(provider).__name__ if provider is not None else "none"
+
+
 def _fallback_risk_metrics(metrics: CandidateMetrics) -> RiskMetrics:
     """Degrade gracefully when no risk provider is configured (candidate-derived)."""
     return RiskMetrics(
@@ -193,6 +202,7 @@ class MockDseEngine:
         risk_provider: RiskMetricsProvider | None = None,
         earn_provider: EarnRatesProvider | None = None,
         enrichment: DseAnalyticsEnrichmentService | None = None,
+        debug_enabled: bool = False,
         quote_port: QuotePort | None = None,
         market_data: MarketDataPort | None = None,
         exchange: ExchangePort | None = None,
@@ -207,6 +217,8 @@ class MockDseEngine:
         self._earn = earn_provider
         # T7.6 internal analytics enrichment (sandbox-mock; explanation-only).
         self._enrichment = enrichment
+        # T7.8 sandbox decision-trace gate (operator env flag; default OFF).
+        self._debug_enabled = debug_enabled
         self._quote_port = quote_port
         self._market_data = market_data
         self._exchange = exchange
@@ -230,12 +242,19 @@ class MockDseEngine:
             risk_provider=build_risk_provider(settings.dse_risk_provider),
             earn_provider=build_earn_provider(settings.dse_earn_provider),
             enrichment=enrichment,
+            debug_enabled=settings.dse_debug_enabled,
             quote_port=quote,
         )
 
-    async def recommend(self, request: RecommendRequest) -> RecommendResponse:
+    async def recommend(
+        self, request: RecommendRequest, *, debug: bool = False
+    ) -> RecommendResponse:
         weights = weights_for(request.risk_profile, request.custom_weights)
         sentiment = await self._sentiment.get_sentiment(request.asset)
+        # T7.8: capture a per-candidate trace ONLY when double-gated (env flag set
+        # AND the request opted in). Off by default → no work, no field in prod.
+        want_trace = self._debug_enabled and debug
+        raw_steps: dict[ActionType, DecisionTraceStep] = {}
         recs: list[tuple[Decimal, Recommendation]] = []
         for atype, category, metrics, p, b, beta, reason in _CANDIDATES:
             action = Action(type=atype, category=category, asset=request.asset)
@@ -287,6 +306,25 @@ class MockDseEngine:
             )
             recs.append((u, rec))
 
+            if want_trace:
+                # rank is assigned after sorting; filled in below.
+                raw_steps[atype] = DecisionTraceStep(
+                    rank=0,
+                    action_type=atype.value,
+                    action_category=category.value,
+                    raw_expected_return=_score(metrics.expected_return),
+                    earn_yield_pct=(earn.current_yield_pct if earn is not None else None),
+                    effective_expected_return=_score(effective.expected_return),
+                    volatility=_score(effective.volatility),
+                    var99=_score(effective.var99),
+                    var99_source=(
+                        "risk-provider" if self._risk is not None else "candidate-fallback"
+                    ),
+                    drawdown=_score(effective.max_drawdown),
+                    liquidity=_score(effective.liquidity),
+                    utility_score=_score(u),
+                )
+
         # Rank by utility descending (stable for ties), assign 1-based rank.
         # NOTE (T7.6): enrichment is explanation-only — it does NOT re-rank; the
         # established utility framework drives ordering unchanged.
@@ -301,13 +339,41 @@ class MockDseEngine:
             if analytics is not None:
                 ranked = [self._enrichment.enrich_recommendation(rec, analytics) for rec in ranked]
 
+        trace_id = _trace_id(request)
+        # T7.8: assemble the dev-only decision-trace (double-gated). No secrets —
+        # only request-derived data, mock model metadata, and provider class names.
+        decision_trace: DecisionTrace | None = None
+        if want_trace:
+            steps = [
+                raw_steps[rec.action.type].model_copy(update={"rank": rec.rank})
+                for rec in ranked
+                if rec.action.type in raw_steps
+            ]
+            decision_trace = DecisionTrace(
+                trace_id=trace_id,
+                risk_profile=request.risk_profile.value,
+                weights=weights,
+                risk_provider=_provider_name(self._risk),
+                earn_provider=_provider_name(self._earn),
+                sentiment_provider=_provider_name(self._sentiment),
+                stress_provider=_provider_name(self._stress),
+                enrichment_applied=analytics is not None,
+                steps=steps,
+                note=(
+                    "Sandbox debug trace — reconstructs the mock decision path "
+                    "(inputs, normalized features, utility, enrichment). Contains NO "
+                    "production secrets, keys, or live data. dev/sandbox only."
+                ),
+            )
+
         return RecommendResponse(
             recommendations=ranked,
             sentiment=sentiment,
             model_versions=_MODEL_VERSIONS,
             disclaimer=_DISCLAIMER,
             analytics_context=analytics,
-            trace_id=_trace_id(request),
+            trace_id=trace_id,
             explanation_version=_EXPLANATION_VERSION,
+            decision_trace=decision_trace,
             as_of=self._now(),
         )

@@ -87,6 +87,15 @@ class Settings(BaseSettings):
     risk_greeks_provider: str = "mock"
     earn_rates_provider: str = "mock"
 
+    # --- DSE sandbox decision-trace (T7.8) — observability/debug, OFF by default ---
+    # When True (sandbox/dev ONLY), AND the request carries the X-Banxe-Dse-Debug
+    # header, POST /api/v1/dss/recommend attaches an OPTIONAL decisionTrace that
+    # reconstructs the mock decision path (inputs, normalized features, utility,
+    # enrichment) by traceId. Double-gated; default OFF so production partners
+    # never receive it. The trace carries NO secrets/keys/endpoints — only
+    # request-derived data + mock model metadata. Does NOT change utility/ranking.
+    dse_debug_enabled: bool = False
+
     # --- public (non-secret) URLs only ---
     # Real upstream URLs are injected via env at deploy time; defaults are local.
     orderbook_ws_url: str | None = None

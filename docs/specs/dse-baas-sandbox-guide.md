@@ -129,6 +129,55 @@ These fields are **informational/advisory only** — they explain the model, the
 do not authorize execution. The breakdown is mock/sandbox-derived like the rest
 of this build.
 
+## Decision trace (DEV-ONLY observability) — T7.8
+
+For sandbox debugging, the engine can attach a `decisionTrace` that lets you
+reconstruct the **whole mock decision path** (inputs → normalized features →
+`utilityBreakdown` → enrichment) by `traceId`. It is **double-gated and OFF by
+default** — **production partners never receive it**:
+
+1. **Operator env flag** `BANXE_DSE_DEBUG_ENABLED=true` (sandbox/dev deployments
+   only), **and**
+2. **Per-request opt-in header** `X-Banxe-Dse-Debug: true`.
+
+With either gate closed, `decisionTrace` is `null`/absent and the response is
+exactly the production contract.
+
+```bash
+curl -sS -X POST "$DSE_SANDBOX_BASE_URL/v1/dss/recommend" \
+  -H "content-type: application/json" \
+  -H "X-Banxe-Dse-Debug: true" \
+  -d '{"asset":"BTCUSDT","portfolioValueUsd":"10000",
+       "currentPositions":[{"asset":"BTCUSDT","sizeUsd":"8000","side":"long"}]}'
+```
+
+```json
+{
+  "decisionTrace": {
+    "traceId": "dss-50b286aba2c567a7",
+    "riskProfile": "balanced",
+    "weights": { "w1ExpectedReturn": "1.0", "w2Volatility": "1.0", "w3Var99": "1.0", "w4Drawdown": "1.0", "w5Liquidity": "1.0" },
+    "riskProvider": "MockRiskMetricsProvider", "earnProvider": "MockEarnRatesProvider",
+    "sentimentProvider": "MockSentimentProvider", "stressProvider": "MockStressProvider",
+    "enrichmentApplied": true,
+    "steps": [
+      { "rank": 3, "actionType": "STAKE", "actionCategory": "earn",
+        "rawExpectedReturn": "0.050000", "earnYieldPct": "3.5000",
+        "effectiveExpectedReturn": "0.085000", "volatility": "0.010000",
+        "var99": "0.023263", "var99Source": "risk-provider",
+        "drawdown": "0.010000", "liquidity": "0.600000", "utilityScore": "..." }
+    ],
+    "note": "Sandbox debug trace — ... Contains NO production secrets, keys, or live data. dev/sandbox only."
+  }
+}
+```
+
+**Security & scope:** the trace carries **only** request-derived data, mock model
+metadata, and provider **class names** (e.g. `MockRiskMetricsProvider`) — **never**
+keys, secrets, endpoints, or env values. It is observability, **not** execution,
+and it **does not change** utility or ranking. Correlate by `traceId` (the same
+deterministic id as the response).
+
 ## Walkthroughs
 
 ### 1. Risk card + recommendation (neobank)
