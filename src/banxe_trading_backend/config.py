@@ -96,6 +96,15 @@ class Settings(BaseSettings):
     # request-derived data + mock model metadata. Does NOT change utility/ranking.
     dse_debug_enabled: bool = False
 
+    # --- DSE BaaS sandbox facade (T8.1) — external advisory endpoint, OFF default ---
+    # When True (sandbox/dev deployments ONLY), the external BaaS facade
+    # POST /v1/dss/recommend is served as a thin, advisory-only, mock-only proxy
+    # over the SAME internal DSE engine. Default OFF: production environments serve
+    # NO external DSE BaaS (the facade returns 503 "sandbox disabled"). Deployment
+    # MUST additionally fence this to sandbox/dev hosts at the ingress/host layer.
+    # Advisory-only: NO execution, NO signing, NO billing, NO partner keys.
+    dse_baas_sandbox_enabled: bool = False
+
     # --- public (non-secret) URLs only ---
     # Real upstream URLs are injected via env at deploy time; defaults are local.
     orderbook_ws_url: str | None = None
