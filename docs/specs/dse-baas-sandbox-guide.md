@@ -88,6 +88,47 @@ New optional fields:
 UI as context; **do not** auto-execute, auto-hedge, or auto-stake. The endpoint
 remains advisory and self-custodial, and the public BaaS surface is **unchanged**.
 
+## Explainability & traceability — T7.7
+
+`POST /v1/dss/recommend` exposes **why** each recommendation got its score and a
+stable id for the response. **No new endpoint, no contract break** — these are
+**optional, additive** fields, and they **do not change** the utility score or the
+ranking (they decompose the *existing* math `U_a = w1·ER − w2·σ − w3·VaR99 −
+w4·DD + w5·Liq`).
+
+- `recommendations[].utilityBreakdown` — the five signed terms behind the score.
+  Each component has `factor`, `value`, `weight`, `contribution` (signed) and
+  `direction`. **The contributions sum exactly to `utilityScore`** — render a
+  waterfall / "why this rank" panel from it.
+- `recommendations[].topDriver` — the factor with the largest absolute
+  contribution (the dominant reason).
+- `traceId` — **deterministic**: the same request (canonical inputs) always
+  yields the same id (`dss-<hash>`). Use it to correlate logs / support tickets
+  and to dedupe identical advisory calls.
+- `explanationVersion` — version tag of the explainability layer (traceability).
+
+```json
+{
+  "recommendations": [
+    { "rank": 1, "action": { "type": "BUY", "category": "spot", "asset": "BTCUSDT" },
+      "utilityScore": "0.842948", "topDriver": "liquidity",
+      "utilityBreakdown": [
+        { "factor": "expectedReturn", "value": "0.060000", "weight": "1.0", "contribution": "0.060000", "direction": "positive" },
+        { "factor": "volatility", "value": "0.030000", "weight": "1.0", "contribution": "-0.030000", "direction": "negative" },
+        { "factor": "var99", "value": "0.069789", "weight": "1.0", "contribution": "-0.069789", "direction": "negative" },
+        { "factor": "drawdown", "value": "0.040000", "weight": "1.0", "contribution": "-0.040000", "direction": "negative" },
+        { "factor": "liquidity", "value": "0.950000", "weight": "1.0", "contribution": "0.950000", "direction": "positive" }
+      ] }
+  ],
+  "traceId": "dss-50b286aba2c567a7",
+  "explanationVersion": "dss-explain-0.1.0"
+}
+```
+
+These fields are **informational/advisory only** — they explain the model, they
+do not authorize execution. The breakdown is mock/sandbox-derived like the rest
+of this build.
+
 ## Walkthroughs
 
 ### 1. Risk card + recommendation (neobank)

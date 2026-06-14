@@ -10,6 +10,7 @@ wired here only as provider/port seams (mock by default).
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -42,6 +43,7 @@ from .models import (
     RecommendRequest,
     RecommendResponse,
     RiskMetrics,
+    UtilityComponent,
 )
 from .profiles import weights_for
 from .providers import (
@@ -52,7 +54,7 @@ from .providers import (
     build_sentiment_provider,
     build_stress_provider,
 )
-from .utility import CandidateMetrics, utility_score
+from .utility import CandidateMetrics, UtilityTerm, utility_components, utility_score
 
 if TYPE_CHECKING:
     from banxe_trading_backend.config import Settings
@@ -101,6 +103,8 @@ _MODEL_VERSIONS = ModelVersions(
     kelly="kelly-0.1.0",
     stress="mock-stress-0.1.0",
 )
+# T7.7 explainability-layer version (traceability of the breakdown surface).
+_EXPLANATION_VERSION = "dss-explain-0.1.0"
 
 
 def _pct(fraction: Decimal) -> str:
@@ -109,6 +113,42 @@ def _pct(fraction: Decimal) -> str:
 
 def _score(value: Decimal) -> str:
     return str(value.quantize(Decimal("0.000001")))
+
+
+def _trace_id(request: RecommendRequest) -> str:
+    """Deterministic trace id — same request canon → same id (traceability)."""
+    positions = ";".join(
+        f"{p.asset}:{p.size_usd}:{p.side}" for p in request.current_positions
+    )
+    custom = ""
+    if request.custom_weights is not None:
+        w = request.custom_weights
+        custom = (
+            f"{w.w1_expected_return},{w.w2_volatility},{w.w3_var99},"
+            f"{w.w4_drawdown},{w.w5_liquidity}"
+        )
+    canon = (
+        f"{request.asset}|{request.portfolio_value_usd}|{request.risk_profile.value}|"
+        f"{positions}|{custom}|{request.include_stress_tests}|{request.include_sentiment}"
+    )
+    digest = hashlib.sha256(canon.encode("utf-8")).hexdigest()[:16]
+    return f"dss-{digest}"
+
+
+def _breakdown(terms: list[UtilityTerm]) -> tuple[list[UtilityComponent], str]:
+    """Map utility terms to wire components + the single largest |contribution|."""
+    components = [
+        UtilityComponent(
+            factor=t.factor,
+            value=_score(t.value),
+            weight=str(t.weight),
+            contribution=_score(t.contribution),
+            direction=t.direction,
+        )
+        for t in terms
+    ]
+    top = max(terms, key=lambda t: abs(t.contribution))
+    return components, top.factor
 
 
 def _fallback_risk_metrics(metrics: CandidateMetrics) -> RiskMetrics:
@@ -210,7 +250,11 @@ class MockDseEngine:
             if category is ActionCategory.EARN and self._earn is not None:
                 earn = await self._earn.get_earn_metrics(request.asset)
 
-            u = utility_score(_effective_metrics(metrics, risk, earn), weights)
+            effective = _effective_metrics(metrics, risk, earn)
+            u = utility_score(effective, weights)
+            # T7.7 explainability: decompose the SAME (effective metrics, weights)
+            # that produced `u` — contributions sum to utility_score (no re-rank).
+            components, top_driver = _breakdown(utility_components(effective, weights))
             kelly = kelly_fraction(Decimal(p), Decimal(b))
             half = half_kelly_fraction(Decimal(p), Decimal(b))
             stress = (
@@ -238,6 +282,8 @@ class MockDseEngine:
                 sentiment=sentiment if request.include_sentiment else None,
                 stress_tests=stress,
                 reasons=reasons,
+                utility_breakdown=components,
+                top_driver=top_driver,
             )
             recs.append((u, rec))
 
@@ -261,5 +307,7 @@ class MockDseEngine:
             model_versions=_MODEL_VERSIONS,
             disclaimer=_DISCLAIMER,
             analytics_context=analytics,
+            trace_id=_trace_id(request),
+            explanation_version=_EXPLANATION_VERSION,
             as_of=self._now(),
         )
