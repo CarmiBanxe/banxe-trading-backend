@@ -157,6 +157,20 @@ class AnalyticsContext(CamelModel):
     source: str
 
 
+class UtilityComponent(CamelModel):
+    """One signed term of the utility decomposition (explainability, T7.7).
+
+    Exposes the EXISTING utility math per factor; the contributions sum to the
+    recommendation's ``utilityScore``. It does not change utility or ranking.
+    """
+
+    factor: str  # expectedReturn | volatility | var99 | drawdown | liquidity
+    value: DecimalStr
+    weight: DecimalStr
+    contribution: DecimalStr
+    direction: str  # positive | negative
+
+
 class Recommendation(CamelModel):
     rank: int
     action: Action
@@ -176,6 +190,10 @@ class Recommendation(CamelModel):
     # T7.6 additive enrichment (optional, sandbox-mock-derived; explanation-only).
     risk_notes: list[str] | None = None
     alternatives: list[EarnAlternative] | None = None
+    # T7.7 additive explainability: signed decomposition of utilityScore +
+    # the single largest driver. Exposes existing math; ranking is unchanged.
+    utility_breakdown: list[UtilityComponent] | None = None
+    top_driver: str | None = None
 
 
 class ModelVersions(CamelModel):
@@ -202,4 +220,8 @@ class RecommendResponse(CamelModel):
     disclaimer: str
     # T7.6 additive enrichment (optional; absent/null when no portfolio context).
     analytics_context: AnalyticsContext | None = None
+    # T7.7 additive traceability: deterministic id (same request -> same id) +
+    # the explainability-layer version. Optional / backward-compatible.
+    trace_id: str | None = None
+    explanation_version: str | None = None
     as_of: str

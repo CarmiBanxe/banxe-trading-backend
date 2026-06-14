@@ -24,6 +24,7 @@ from .models import (
     SentimentScore,
     StressScenario,
     StressTests,
+    UtilityComponent,
     UtilityWeights,
 )
 from .profiles import AGGRESSIVE, BALANCED, CONSERVATIVE, weights_for
@@ -56,6 +57,7 @@ __all__ = [
     "EarnMetrics",
     "EarnAlternative",
     "AnalyticsContext",
+    "UtilityComponent",
     "RecommendRequest",
     "RecommendResponse",
     "CONSERVATIVE",
