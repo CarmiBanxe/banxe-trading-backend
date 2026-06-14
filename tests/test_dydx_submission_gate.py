@@ -75,14 +75,25 @@ def test_submission_requires_both_flag_and_valid_url(
     assert adapter.submission_enabled() is expected
 
 
-def test_submit_enabled_gate_open_but_transport_unwired_no_network() -> None:
-    adapter = DydxExchangeAdapter.from_settings(
-        Settings(dydx_submit_enabled=True, dydx_node_url=FAKE_NODE_URL)
+def test_submit_enabled_routes_to_transport_no_real_network() -> None:
+    # Gate open → the signed payload is relayed via the (injected fake) transport.
+    # The fake records the call and returns success — NO real network is touched.
+    seen: list[tuple[str, object]] = []
+
+    class _FakeTransport:
+        async def submit(self, node_url: str, signed_order: object, *, timeout_s: float) -> dict:
+            seen.append((node_url, signed_order))
+            return {"txhash": "FAKEHASH", "code": 0}
+
+    adapter = DydxExchangeAdapter(
+        submit_enabled=True,
+        node_url=FAKE_NODE_URL,
+        submission_transport=_FakeTransport(),
     )
     assert adapter.submission_enabled() is True
-    # Gate open, but NO real endpoint is wired → refused, still without network I/O.
-    with pytest.raises(ExchangeUnavailable, match="not wired"):
-        asyncio.run(adapter.submit_signed_order({"signed": "tx"}))
+    result = asyncio.run(adapter.submit_signed_order({"signed": "tx"}))
+    assert seen == [(FAKE_NODE_URL, {"signed": "tx"})]  # relayed unchanged
+    assert result.raw is not None and result.raw["submitted"] is True
 
 
 def test_enabling_submission_does_not_change_intent_output() -> None:

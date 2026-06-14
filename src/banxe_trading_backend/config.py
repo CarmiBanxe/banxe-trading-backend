@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     # network call. NO real node endpoint is committed (defaults: false / unset).
     dydx_submit_enabled: bool = False
     dydx_node_url: str | None = None
+    # Submission HTTP timeout (seconds) — env-only, safe default. No endpoint here.
+    dydx_submit_timeout_s: float = 10.0
 
     # --- public (non-secret) URLs only ---
     # Real upstream URLs are injected via env at deploy time; defaults are local.
