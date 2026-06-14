@@ -13,12 +13,14 @@ from fastapi import FastAPI
 from banxe_trading_backend import __version__
 from banxe_trading_backend.api import (
     auth_router,
+    dss_router,
     orders_router,
     quotes_router,
     rate_router,
     symbols_router,
 )
 from banxe_trading_backend.config import Settings, get_settings
+from banxe_trading_backend.dse import DseEngine, MockDseEngine
 from banxe_trading_backend.ports import (
     DydxExchangeAdapter,
     DydxMarketDataAdapter,
@@ -57,6 +59,12 @@ def _build_market_data(settings: Settings) -> MarketDataPort:
     return InMemoryMockMarketData()
 
 
+def _build_dse(settings: Settings, *, quote: QuotePort) -> DseEngine:
+    # Advisory-only (ADR-084). Only the deterministic mock ships this sprint.
+    # The QuotePort seam is injected for future ER/slippage use (unused in mock).
+    return MockDseEngine(quote_port=quote)
+
+
 def _build_quote(settings: Settings) -> QuotePort:
     # Provider-parameterized. Default "mock" → deterministic, no network.
     # "lifi" → public LI.FI quote API (no key; ADR-083 S6.5); constructed lazily
@@ -74,6 +82,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.exchange = _build_exchange(settings)
     app.state.market_data = _build_market_data(settings)
     app.state.quote = _build_quote(settings)
+    app.state.dse = _build_dse(settings, quote=app.state.quote)
     app.state.wallet_auth = _build_wallet_auth(settings)
 
     @app.get("/healthz", tags=["health"])
@@ -82,6 +91,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     api = settings.api_prefix
     app.include_router(auth_router, prefix=api)
+    app.include_router(dss_router, prefix=api)
     app.include_router(orders_router, prefix=api)
     app.include_router(quotes_router, prefix=api)
     app.include_router(rate_router, prefix=api)

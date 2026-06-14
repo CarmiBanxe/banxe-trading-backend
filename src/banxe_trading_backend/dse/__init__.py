@@ -1,0 +1,45 @@
+"""Decision Support Engine (DSE) — advisory-only (ADR-084, T7.1).
+
+Explainable recommendations (utility + Kelly/Half-Kelly + mock sentiment/stress).
+No auto-execution, no signing, no key custody, no gamification.
+"""
+
+from .engine import DseEngine, MockDseEngine
+from .models import (
+    Action,
+    ActionCategory,
+    ActionType,
+    ModelVersions,
+    Position,
+    Recommendation,
+    RecommendRequest,
+    RecommendResponse,
+    RiskProfile,
+    SentimentScore,
+    StressScenario,
+    StressTests,
+    UtilityWeights,
+)
+from .profiles import AGGRESSIVE, BALANCED, CONSERVATIVE, weights_for
+
+__all__ = [
+    "DseEngine",
+    "MockDseEngine",
+    "ActionType",
+    "ActionCategory",
+    "RiskProfile",
+    "UtilityWeights",
+    "Action",
+    "Position",
+    "SentimentScore",
+    "StressScenario",
+    "StressTests",
+    "Recommendation",
+    "ModelVersions",
+    "RecommendRequest",
+    "RecommendResponse",
+    "CONSERVATIVE",
+    "BALANCED",
+    "AGGRESSIVE",
+    "weights_for",
+]
