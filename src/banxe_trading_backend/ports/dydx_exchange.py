@@ -23,7 +23,7 @@ import hashlib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 from urllib.parse import urlparse
 
 from banxe_trading_backend.models import (
@@ -35,7 +35,13 @@ from banxe_trading_backend.models import (
     TimeInForce,
 )
 
-from .exchange_port import ExchangeUnavailable, ValidationError
+from .exchange_port import (
+    ComplianceBlock,
+    ExchangeError,
+    ExchangeUnavailable,
+    InsufficientBalance,
+    ValidationError,
+)
 
 if TYPE_CHECKING:
     from banxe_trading_backend.config import Settings
@@ -129,8 +135,105 @@ def _builder_codes_from_settings(settings: Settings) -> BuilderCodes | None:
     return None
 
 
+def _extract_code(response: Mapping[str, object]) -> int | None:
+    """Cosmos broadcast carries a top-level ``code``; CometBFT JSON-RPC nests it."""
+    code = response.get("code")
+    if code is None:
+        result = response.get("result")
+        if isinstance(result, Mapping):
+            code = result.get("code")
+    return int(code) if isinstance(code, int) else None
+
+
+def _extract_txhash(response: Mapping[str, object]) -> str | None:
+    for key in ("txhash", "txHash", "hash"):
+        value = response.get(key)
+        if isinstance(value, str) and value:
+            return value
+    result = response.get("result")
+    if isinstance(result, Mapping):
+        value = result.get("hash")
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+def _node_raw_log(response: Mapping[str, object]) -> str:
+    for key in ("raw_log", "rawLog", "log"):
+        value = response.get(key)
+        if isinstance(value, str):
+            return value
+    return ""
+
+
+def _map_node_failure(code: int | None, raw_log: str) -> ExchangeError:
+    """Map a dYdX node rejection into the §D3 error hierarchy."""
+    log = raw_log.lower()
+    if "insufficient" in log:
+        return InsufficientBalance(f"dYdX node rejected order: {raw_log}")
+    if "sanction" in log or "blocked" in log or "compliance" in log:
+        return ComplianceBlock(f"dYdX node blocked order: {raw_log}")
+    if "invalid" in log or "sequence" in log or "signature" in log:
+        return ValidationError(f"dYdX node rejected order: {raw_log}")
+    return ExchangeUnavailable(f"dYdX node rejected order (code {code}): {raw_log}")
+
+
+def _result_from_node_response(response: Mapping[str, object]) -> OrderResult:
+    """Map a node broadcast response → OrderResult (success) or §D3 error."""
+    code = _extract_code(response)
+    txhash = _extract_txhash(response)
+    if code in (0, None) and txhash is not None:
+        # Accepted by the node (tx broadcast). Fills are read via the Indexer later.
+        return OrderResult(
+            order_id=txhash,
+            state=OrderState.ACCEPTED,
+            filled_amount="0",
+            raw={"submitted": True, "node": dict(response)},
+        )
+    raise _map_node_failure(code, _node_raw_log(response))
+
+
+@runtime_checkable
+class DydxSubmissionTransport(Protocol):
+    """Relays an ALREADY-signed order to a dYdX node. Injectable so CI mocks it.
+
+    Pure relay: the backend never signs and holds no keys. The endpoint URL is
+    operator-supplied via env (no hard-coded host). Returns the node's response;
+    raises on transport/connection failure (mapped to §D3 by the adapter).
+    """
+
+    async def submit(
+        self, node_url: str, signed_order: Mapping[str, object], *, timeout_s: float
+    ) -> Mapping[str, object]: ...
+
+
+class HttpxSubmissionTransport:
+    """Default transport: POST the client-signed payload to the node URL (HTTPS).
+
+    No credentials (public submission of a signed tx). No hard-coded endpoint —
+    the full submission URL is the operator's ``BANXE_DYDX_NODE_URL``. httpx is
+    imported lazily so construction (and CI) never touches the network.
+    """
+
+    async def submit(
+        self, node_url: str, signed_order: Mapping[str, object], *, timeout_s: float
+    ) -> Mapping[str, object]:
+        import httpx  # local import: only needed when live submission actually runs
+
+        async with httpx.AsyncClient(timeout=timeout_s) as client:
+            resp = await client.post(node_url, json=dict(signed_order))
+            resp.raise_for_status()
+            data: Mapping[str, object] = resp.json()
+            return data
+
+
 class DydxExchangeAdapter:
-    """ExchangePort that builds UNSIGNED dYdX intents (no signing, no submit)."""
+    """ExchangePort that builds UNSIGNED dYdX intents, and (gated) relays signed ones.
+
+    Self-custodial / API-only: the backend NEVER signs and holds NO keys. When the
+    operator opens the submission gate (env), ``submit_signed_order`` relays a
+    client-signed payload to the node and maps the response to the §D3 model.
+    """
 
     def __init__(
         self,
@@ -140,6 +243,8 @@ class DydxExchangeAdapter:
         subaccount_number: int = 0,
         submit_enabled: bool = False,
         node_url: str | None = None,
+        submission_transport: DydxSubmissionTransport | None = None,
+        submit_timeout_s: float = 10.0,
     ) -> None:
         self._markets = dict(markets) if markets is not None else dict(_DEFAULT_MARKETS)
         self._builder_codes = builder_codes
@@ -147,6 +252,10 @@ class DydxExchangeAdapter:
         # Live-submission gate inputs (S6.3b). Both must be satisfied; default off.
         self._submit_enabled = submit_enabled
         self._node_url = node_url
+        self._submission_transport: DydxSubmissionTransport = (
+            submission_transport if submission_transport is not None else HttpxSubmissionTransport()
+        )
+        self._submit_timeout_s = submit_timeout_s
 
     @classmethod
     def from_settings(cls, settings: Settings) -> DydxExchangeAdapter:
@@ -155,6 +264,7 @@ class DydxExchangeAdapter:
             subaccount_number=settings.dydx_subaccount_number,
             submit_enabled=settings.dydx_submit_enabled,
             node_url=settings.dydx_node_url,
+            submit_timeout_s=settings.dydx_submit_timeout_s,
         )
 
     # --- live-submission gate (S6.3b) -------------------------------------- #
@@ -169,22 +279,41 @@ class DydxExchangeAdapter:
         return self._submit_enabled and _is_valid_node_url(self._node_url)
 
     async def submit_signed_order(self, signed_order: Mapping[str, object]) -> OrderResult:
-        """Relay a CLIENT-signed order to the dYdX node (S6.3b).
+        """Relay a CLIENT-signed order to the dYdX node (S6.3b-final).
 
-        Self-custodial: the backend never signs — it would only broadcast a tx the
-        wallet already signed. Gated by ``submission_enabled()``. This build wires
-        NO real endpoint, so even when the gate is open the call is refused without
-        any network I/O (the transport is operator-wired in S6.3b-final).
+        Self-custodial / API-only: the backend NEVER signs and holds NO keys — it
+        only broadcasts a payload the wallet already signed, and reads the node's
+        response. Gated by ``submission_enabled()``:
+
+        * gate CLOSED (default — flag off OR node URL missing/invalid) → raise
+          ``ExchangeUnavailable("live submission disabled …")``; NO network I/O.
+        * gate OPEN → POST the *unmodified* signed payload to the operator's
+          ``BANXE_DYDX_NODE_URL`` via the injected transport, then map the node
+          response (success / failure) into the §D3 error model.
+
+        Enabling submission is purely an operator env decision (OPERATOR DECISION
+        REQUIRED). Builder Codes live inside the client-built payload and are NOT
+        required for submission; this method never mutates the signed content.
         """
         if not self.submission_enabled():
             raise ExchangeUnavailable(
                 "live submission disabled — set BANXE_DYDX_SUBMIT_ENABLED and a valid "
                 "BANXE_DYDX_NODE_URL (operator-gated)"
             )
-        # Gate is open, but no submission transport is wired in this build.
-        raise ExchangeUnavailable(
-            "dYdX submission transport not wired in this build (operator-gated, S6.3b-final)"
-        )
+        # node_url is guaranteed valid here by submission_enabled().
+        node_url = self._node_url
+        assert node_url is not None  # noqa: S101 - invariant of submission_enabled()
+        try:
+            response = await self._submission_transport.submit(
+                node_url, signed_order, timeout_s=self._submit_timeout_s
+            )
+        except ExchangeError:
+            raise  # a transport may already speak the §D3 model — pass it through
+        except Exception as exc:  # noqa: BLE001 - any transport/connection error → §D3
+            raise ExchangeUnavailable(
+                f"dYdX node submission failed: {type(exc).__name__}"
+            ) from exc
+        return _result_from_node_response(response)
 
     # --- intent construction (the testable core) --------------------------- #
 

@@ -4,6 +4,8 @@ from .dydx_exchange import (
     BuilderCodes,
     DydxExchangeAdapter,
     DydxMarketParams,
+    DydxSubmissionTransport,
+    HttpxSubmissionTransport,
     calculate_quantums,
     calculate_subticks,
 )
@@ -33,6 +35,8 @@ __all__ = [
     "DydxExchangeAdapter",
     "DydxMarketParams",
     "BuilderCodes",
+    "DydxSubmissionTransport",
+    "HttpxSubmissionTransport",
     "calculate_quantums",
     "calculate_subticks",
     "ExchangeError",
