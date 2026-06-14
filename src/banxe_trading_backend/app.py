@@ -14,13 +14,20 @@ from banxe_trading_backend import __version__
 from banxe_trading_backend.api import (
     auth_router,
     dss_router,
+    earn_router,
     orders_router,
     quotes_router,
     rate_router,
+    risk_router,
     symbols_router,
 )
 from banxe_trading_backend.config import Settings, get_settings
 from banxe_trading_backend.dse import DseEngine, MockDseEngine
+from banxe_trading_backend.earn import (
+    EarnRatesCatalog,
+    build_earn_provider,
+    build_earn_rates_catalog,
+)
 from banxe_trading_backend.ports import (
     DydxExchangeAdapter,
     DydxMarketDataAdapter,
@@ -34,6 +41,7 @@ from banxe_trading_backend.ports import (
     SiweAuthAdapter,
     WalletAuthPort,
 )
+from banxe_trading_backend.risk import RiskGreeksProvider, build_risk_greeks_provider
 from banxe_trading_backend.ws import orderbook_router
 
 
@@ -66,6 +74,18 @@ def _build_dse(settings: Settings, *, quote: QuotePort) -> DseEngine:
     return MockDseEngine.from_settings(settings, quote=quote)
 
 
+def _build_risk_greeks(settings: Settings) -> RiskGreeksProvider:
+    # T7.5 read-only BaaS Greeks — advisory, sandbox/mock default (no network).
+    return build_risk_greeks_provider(settings.risk_greeks_provider)
+
+
+def _build_earn_rates(settings: Settings) -> EarnRatesCatalog:
+    # T7.5 read-only BaaS earn rates — advisory, sandbox/mock default. The
+    # catalogue composes the existing mock earn provider (no network/keys).
+    provider = build_earn_provider(settings.dse_earn_provider)
+    return build_earn_rates_catalog(settings.earn_rates_provider, provider)
+
+
 def _build_quote(settings: Settings) -> QuotePort:
     # Provider-parameterized. Default "mock" → deterministic, no network.
     # "lifi" → public LI.FI quote API (no key; ADR-083 S6.5); constructed lazily
@@ -84,6 +104,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.market_data = _build_market_data(settings)
     app.state.quote = _build_quote(settings)
     app.state.dse = _build_dse(settings, quote=app.state.quote)
+    app.state.risk_greeks = _build_risk_greeks(settings)
+    app.state.earn_rates = _build_earn_rates(settings)
     app.state.wallet_auth = _build_wallet_auth(settings)
 
     @app.get("/healthz", tags=["health"])
@@ -93,6 +115,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     api = settings.api_prefix
     app.include_router(auth_router, prefix=api)
     app.include_router(dss_router, prefix=api)
+    app.include_router(risk_router, prefix=api)
+    app.include_router(earn_router, prefix=api)
     app.include_router(orders_router, prefix=api)
     app.include_router(quotes_router, prefix=api)
     app.include_router(rate_router, prefix=api)

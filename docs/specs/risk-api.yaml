@@ -1,0 +1,98 @@
+openapi: 3.0.3
+info:
+  title: BANXE Risk — BaaS read-only analytics (T7.5)
+  version: 0.1.0
+  description: >
+    BaaS / TaaS Tier-2 Risk ANALYTICS surface. Read-only, advisory-only.
+
+    GET /v1/risk/greeks returns portfolio-level Greeks (Delta/Gamma/Vega/Theta/
+    Rho) for a target asset / net notional. These are ADVISORY ANALYTICS, NOT
+    execution and NOT investment advice (MiCA / MiFID II: analytics vs execution
+    are kept separate). Self-custodial — the backend signs nothing and holds no
+    keys.
+
+    SANDBOX this sprint: values are deterministic mock data, flagged
+    `source: "sandbox-mock"`, NOT a calibrated risk model. No keys, no network,
+    no production endpoints. The future Risk endpoints (GET /v1/risk/var,
+    POST /v1/risk/stress, GET /v1/risk/pnl) are NOT part of T7.5 and remain a
+    future Phase 2+ under a separate ADR + legal review.
+
+    All monetary / metric fields are decimal strings (I-01). The internal path is
+    GET /api/v1/risk/greeks; Kong gateway, partner keys, billing and rate limits
+    are out of scope.
+paths:
+  /v1/risk/greeks:
+    get:
+      operationId: getRiskGreeks
+      summary: Portfolio-level Greeks (advisory analytics, read-only)
+      description: >
+        Read-only advisory analytics. Returns aggregated Greeks for the target
+        asset / net notional. NOT execution, NOT signing (self-custodial).
+      parameters:
+        - in: query
+          name: asset
+          required: true
+          schema: { type: string, example: "BTCUSDT" }
+          description: target asset
+        - in: query
+          name: portfolioValueUsd
+          required: false
+          schema: { type: string, example: "10000" }
+          description: total portfolio value in USD (decimal, I-01)
+        - in: query
+          name: positionUsd
+          required: false
+          schema: { type: string, example: "5000" }
+          description: net notional in the target asset (decimal, I-01)
+        - in: query
+          name: side
+          required: false
+          schema: { type: string, enum: [long, short, spot], default: long }
+      responses:
+        "200":
+          description: Portfolio-level Greeks (sandbox-mock)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PortfolioGreeksResponse" }
+              example:
+                asset: "BTCUSDT"
+                notionalUsd: "5000.00"
+                side: "long"
+                greeks:
+                  delta: "0.5000"
+                  gamma: "0.0100"
+                  vega: "0.0500"
+                  theta: "-0.0050"
+                  rho: "0.0050"
+                source: "sandbox-mock"
+                asOf: "2026-06-14T00:00:00+00:00"
+                disclaimer: "Advisory analytics only — sandbox mock data ..."
+        "422":
+          description: Validation error
+components:
+  schemas:
+    Greeks:
+      type: object
+      required: [delta, gamma, vega, theta, rho]
+      additionalProperties: false
+      properties:
+        delta: { type: string, description: "decimal (I-01)" }
+        gamma: { type: string, description: "decimal (I-01)" }
+        vega: { type: string, description: "decimal (I-01)" }
+        theta: { type: string, description: "decimal (I-01)" }
+        rho: { type: string, description: "decimal (I-01)" }
+    PortfolioGreeksResponse:
+      type: object
+      required: [asset, notionalUsd, side, greeks, source, asOf, disclaimer]
+      additionalProperties: false
+      properties:
+        asset: { type: string }
+        notionalUsd: { type: string, description: "net notional USD (decimal)" }
+        side: { type: string, enum: [long, short, spot] }
+        greeks: { $ref: "#/components/schemas/Greeks" }
+        source:
+          type: string
+          enum: [sandbox-mock]
+          description: "data source flag; sandbox mock only this sprint"
+        asOf: { type: string, description: "ISO-8601 timestamp" }
+        disclaimer: { type: string, description: "MiCA/MiFID advisory disclosure" }
