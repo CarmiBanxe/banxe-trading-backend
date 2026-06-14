@@ -118,18 +118,32 @@ def test_collection_is_valid_and_sandbox_default() -> None:
     assert len(coll["item"]) >= 3
 
 
-def test_every_collection_item_posts_to_recommend() -> None:
-    coll = json.loads(_COLLECTION.read_text())
+def _items_by_method(coll: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    out: dict[str, list[dict[str, Any]]] = {}
     for item in coll["item"]:
-        req = item["request"]
-        assert req["method"] == "POST"
-        assert req["url"]["path"] == ["v1", "dss", "recommend"]
+        out.setdefault(item["request"]["method"], []).append(item)
+    return out
+
+
+def test_collection_has_recommend_and_readonly_risk_earn() -> None:
+    coll = json.loads(_COLLECTION.read_text())
+    by_method = _items_by_method(coll)
+    # POST items all target the advisory recommend endpoint.
+    assert by_method["POST"], "expected POST /v1/dss/recommend items"
+    for item in by_method["POST"]:
+        assert item["request"]["url"]["path"] == ["v1", "dss", "recommend"]
+    # T7.5 read-only Risk/Earn endpoints are GET only (no execution).
+    get_paths = {tuple(i["request"]["url"]["path"]) for i in by_method.get("GET", [])}
+    assert ("v1", "risk", "greeks") in get_paths
+    assert ("v1", "earn", "rates") in get_paths
 
 
 def test_collection_example_payloads_match_request_schema() -> None:
     props = _request_schema_props()
     coll = json.loads(_COLLECTION.read_text())
     for item in coll["item"]:
+        if item["request"]["method"] != "POST":
+            continue  # GET read-only items carry query params, not a JSON body
         body = json.loads(item["request"]["body"]["raw"])
         unknown = set(body.keys()) - props
         assert not unknown, f"{item['name']}: unknown request keys {unknown}"

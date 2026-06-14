@@ -10,9 +10,27 @@ from .providers import (
     MockEarnRatesProvider,
     build_earn_provider,
 )
+from .rates import (
+    DEFAULT_BASKET,
+    EarnRatesCatalog,
+    EarnRatesResponse,
+    MockEarnRatesCatalog,
+    RateCard,
+    RiskBand,
+    build_earn_rates_catalog,
+    earn_rates,
+)
 
 __all__ = [
     "EarnRatesProvider",
     "MockEarnRatesProvider",
     "build_earn_provider",
+    "EarnRatesCatalog",
+    "MockEarnRatesCatalog",
+    "EarnRatesResponse",
+    "RateCard",
+    "RiskBand",
+    "DEFAULT_BASKET",
+    "build_earn_rates_catalog",
+    "earn_rates",
 ]

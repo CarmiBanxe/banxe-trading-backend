@@ -84,6 +84,42 @@
           "raw": "{\n  \"asset\": \"BTCUSDT\",\n  \"portfolioValueUsd\": \"10000\",\n  \"riskProfile\": \"custom\",\n  \"customWeights\": { \"w1ExpectedReturn\": \"2.0\", \"w2Volatility\": \"0.5\", \"w3Var99\": \"1.0\", \"w4Drawdown\": \"1.0\", \"w5Liquidity\": \"1.0\" },\n  \"includeSentiment\": false,\n  \"includeStressTests\": false\n}"
         }
       }
+    },
+    {
+      "name": "Risk — portfolio Greeks (read-only, sandbox-mock)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "authorization", "value": "Bearer {{apiKey}}" }],
+        "description": "Read-only advisory analytics; sandbox/mock only. No execution, no signing.",
+        "url": {
+          "raw": "{{baseUrl}}/v1/risk/greeks?asset=BTCUSDT&portfolioValueUsd=10000&positionUsd=5000&side=long",
+          "host": ["{{baseUrl}}"],
+          "path": ["v1", "risk", "greeks"],
+          "query": [
+            { "key": "asset", "value": "BTCUSDT" },
+            { "key": "portfolioValueUsd", "value": "10000" },
+            { "key": "positionUsd", "value": "5000" },
+            { "key": "side", "value": "long" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Earn — yield comparison (read-only, sandbox-mock)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "authorization", "value": "Bearer {{apiKey}}" }],
+        "description": "Read-only yield comparison; sandbox/mock only. No stake/unstake, no execution.",
+        "url": {
+          "raw": "{{baseUrl}}/v1/earn/rates?assets=ETH&assets=USDC",
+          "host": ["{{baseUrl}}"],
+          "path": ["v1", "earn", "rates"],
+          "query": [
+            { "key": "assets", "value": "ETH" },
+            { "key": "assets", "value": "USDC" }
+          ]
+        }
+      }
     }
   ]
 }

@@ -101,13 +101,66 @@ must be shown — yields are **estimates, not a promise of return**.
 Use `riskMetrics.var99Pct` and `riskMetrics.greeks` for a tighter risk display;
 `unrealizedPnlUsd/Pct` reflects the provided position.
 
+## Risk API — sandbox Greeks (read-only)
+
+`GET /v1/risk/greeks` returns **portfolio-level Greeks** (Delta / Gamma / Vega /
+Theta / Rho) for a target asset / net notional. **Read-only advisory analytics** —
+not execution, not investment advice (MiCA / MiFID II). Sandbox values are
+deterministic mock data flagged `source: "sandbox-mock"`. The future Risk
+endpoints (`/v1/risk/var`, `/v1/risk/stress`, `/v1/risk/pnl`) are **not** in this
+sandbox.
+
+```bash
+curl -sS "$DSE_SANDBOX_BASE_URL/v1/risk/greeks?asset=BTCUSDT&portfolioValueUsd=10000&positionUsd=5000&side=long" \
+  -H "authorization: Bearer $DSE_SANDBOX_API_KEY"
+```
+
+```json
+{ "asset": "BTCUSDT", "notionalUsd": "5000.00", "side": "long",
+  "greeks": { "delta": "0.5000", "gamma": "0.0100", "vega": "0.0500",
+    "theta": "-0.0050", "rho": "0.0050" },
+  "source": "sandbox-mock", "asOf": "2026-...Z",
+  "disclaimer": "Advisory analytics only — sandbox mock data ..." }
+```
+
+**UX:** render a **Greeks panel / risk badge** next to the position — show the
+`source: sandbox-mock` flag and the disclaimer. No "auto-hedge", no auto-execution,
+no gamification.
+
+## Earn API — sandbox rates (read-only)
+
+`GET /v1/earn/rates` returns a **current-yield comparison** ("rate cards") across
+a basket of assets. **Read-only** — there is **no stake / unstake and no order
+placement**. Yields are estimates / simulations flagged `source: "sandbox-mock"`,
+not a promise of return.
+
+```bash
+curl -sS "$DSE_SANDBOX_BASE_URL/v1/earn/rates?assets=ETH&assets=USDC" \
+  -H "authorization: Bearer $DSE_SANDBOX_API_KEY"
+```
+
+```json
+{ "rates": [
+    { "asset": "ETH", "protocol": "mock-liquid-staking", "apyPct": "4.2000",
+      "lockupDays": 0, "variableRate": true, "riskBand": "medium", "source": "sandbox-mock" },
+    { "asset": "USDC", "protocol": "mock-lending", "apyPct": "5.0000",
+      "lockupDays": 0, "variableRate": true, "riskBand": "low", "source": "sandbox-mock" } ],
+  "source": "sandbox-mock", "asOf": "2026-...Z",
+  "disclaimer": "Advisory analytics only — sandbox mock yields ..." }
+```
+
+**UX:** render a **comparison table** (asset / protocol / APY / lockup / risk
+band). Always show `variableRate` and the disclaimer. **No** "stake now" button,
+leaderboard, or copy-trading — the user acts in their own self-custodial flow.
+
 ## Postman / Hoppscotch collection
 
 Import `dse-baas-sandbox.postman_collection.json` (Postman v2.1 — also imports
 into Hoppscotch). It ships an environment **"BANXE DSE Sandbox"**
 (`baseUrl = https://sandbox.api.banxe.example`, `apiKey = YOUR_KEY_HERE` — a
-sample) and four preconfigured `POST /v1/dss/recommend` requests (spot, perps,
-earn, custom-weights).
+sample) and preconfigured requests: four `POST /v1/dss/recommend` (spot, perps,
+earn, custom-weights) plus the two read-only sandbox endpoints
+`GET /v1/risk/greeks` and `GET /v1/earn/rates`.
 
 ## Python client skeleton
 

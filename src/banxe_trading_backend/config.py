@@ -80,6 +80,13 @@ class Settings(BaseSettings):
     dse_risk_provider: str = "mock"
     dse_earn_provider: str = "mock"
 
+    # --- read-only Risk/Earn BaaS sandbox surface (T7.5) ---
+    # GET /v1/risk/greeks + GET /v1/earn/rates — advisory, READ-ONLY, sandbox.
+    # Mock by default (deterministic, no network/keys). Real providers are
+    # OPERATOR-GATED future sprints; these seams stay empty/no-op this sprint.
+    risk_greeks_provider: str = "mock"
+    earn_rates_provider: str = "mock"
+
     # --- public (non-secret) URLs only ---
     # Real upstream URLs are injected via env at deploy time; defaults are local.
     orderbook_ws_url: str | None = None

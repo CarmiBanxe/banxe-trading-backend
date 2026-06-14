@@ -1,0 +1,96 @@
+openapi: 3.0.3
+info:
+  title: BANXE Earn — BaaS read-only rate comparison (T7.5)
+  version: 0.1.0
+  description: >
+    BaaS / TaaS Tier-2 Earn ANALYTICS surface. Read-only, advisory-only.
+
+    GET /v1/earn/rates returns a current-yield comparison ("rate cards") across a
+    basket of assets. Yields are ADVISORY estimates / simulations, NOT a promise
+    of return, NOT investment advice and NOT execution. There is NO stake /
+    unstake and NO order placement here (self-custodial). Per MiCA / MiFID II,
+    analytics and execution are kept separate.
+
+    SANDBOX this sprint: rates are deterministic mock data, flagged
+    `source: "sandbox-mock"`. No real StakeKit / Aave integration, no keys, no
+    network. Real earn execution and live rate feeds are a future Phase 2+ under
+    a separate ADR + legal review.
+
+    All monetary / metric fields are decimal strings (I-01). The internal path is
+    GET /api/v1/earn/rates; Kong gateway, partner keys, billing and rate limits
+    are out of scope.
+paths:
+  /v1/earn/rates:
+    get:
+      operationId: getEarnRates
+      summary: Current-yield comparison (advisory analytics, read-only)
+      description: >
+        Read-only advisory comparison of mock yields across assets. NO stake /
+        unstake, NO execution (self-custodial).
+      parameters:
+        - in: query
+          name: assets
+          required: false
+          style: form
+          explode: true
+          schema:
+            type: array
+            items: { type: string }
+          description: assets to compare; omitted → default basket
+      responses:
+        "200":
+          description: Yield comparison (sandbox-mock)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EarnRatesResponse" }
+              example:
+                rates:
+                  - asset: "USDC"
+                    protocol: "mock-lending"
+                    apyPct: "5.0000"
+                    lockupDays: 0
+                    variableRate: true
+                    riskBand: "low"
+                    source: "sandbox-mock"
+                  - asset: "ETH"
+                    protocol: "mock-liquid-staking"
+                    apyPct: "4.2000"
+                    lockupDays: 0
+                    variableRate: true
+                    riskBand: "medium"
+                    source: "sandbox-mock"
+                source: "sandbox-mock"
+                asOf: "2026-06-14T00:00:00+00:00"
+                disclaimer: "Advisory analytics only — sandbox mock yields ..."
+components:
+  schemas:
+    RateCard:
+      type: object
+      required: [asset, protocol, apyPct, lockupDays, variableRate, riskBand, source]
+      additionalProperties: false
+      properties:
+        asset: { type: string }
+        protocol: { type: string }
+        apyPct: { type: string, description: "annual percentage yield (decimal, I-01)" }
+        lockupDays: { type: integer }
+        variableRate: { type: boolean }
+        riskBand:
+          type: string
+          enum: [low, medium, high]
+          description: "qualitative risk band (advisory)"
+        source:
+          type: string
+          enum: [sandbox-mock]
+    EarnRatesResponse:
+      type: object
+      required: [rates, source, asOf, disclaimer]
+      additionalProperties: false
+      properties:
+        rates:
+          type: array
+          items: { $ref: "#/components/schemas/RateCard" }
+        source:
+          type: string
+          enum: [sandbox-mock]
+        asOf: { type: string, description: "ISO-8601 timestamp" }
+        disclaimer: { type: string, description: "MiCA/MiFID advisory disclosure" }

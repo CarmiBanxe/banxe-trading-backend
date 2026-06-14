@@ -7,6 +7,13 @@ The real risk-data provider is an OPERATOR-GATED future sprint behind the same
 stub Greeks, parametric VaR99, position-based PnL).
 """
 
+from .greeks import (
+    MockRiskGreeksProvider,
+    PortfolioGreeksResponse,
+    RiskGreeksProvider,
+    build_risk_greeks_provider,
+    portfolio_greeks,
+)
 from .providers import (
     MockRiskMetricsProvider,
     RiskMetricsProvider,
@@ -17,4 +24,9 @@ __all__ = [
     "RiskMetricsProvider",
     "MockRiskMetricsProvider",
     "build_risk_provider",
+    "RiskGreeksProvider",
+    "MockRiskGreeksProvider",
+    "PortfolioGreeksResponse",
+    "build_risk_greeks_provider",
+    "portfolio_greeks",
 ]
