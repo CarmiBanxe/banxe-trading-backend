@@ -69,6 +69,52 @@ The base amount is sized as `notionalUsd / ask`, where `ask` comes from the mock
 - Self-custodial (ADR-083): `ownerAddress` is unset; the client signs client-side.
 - Not reachable on the external `/v1/...` BaaS facade (returns 404 there).
 
+## Frontend use-cases — "From recommendation to preview" (T9.2)
+
+The terminal consumes this endpoint via an **internal Execution Intent Preview
+UI** (`banxe-trading-frontend`, FSD feature `execution-intent` + widget). The
+endpoint **semantics are unchanged** — the UI adds no fields and no new behaviour;
+it just renders the existing response. Two entry paths:
+
+1. **From a DSE recommendation.** The user picks a recommendation from the DSE
+   widget; the UI maps `recommendation.action` (`asset`, `type`) + a user-entered
+   `notionalUsd` into an `IntentPreviewRequest` (`fromRecommendation`) and calls
+   this endpoint. This is the visual realization of *advice → unsigned intent*.
+2. **Manual action.** The user enters `asset`, `actionType`, and `notionalUsd`
+   directly.
+
+UX flow:
+
+```
+DSE recommendation (or manual action)
+   → [Preview unsigned intent]  (POST /api/v1/execution/intent-preview)
+   → Execution Preview panel
+        • banner: "PREVIEW ONLY — NOT EXECUTED"  (unsigned · not submitted · mock)
+        • venue · side · size (amount base/quote) · orderType · reduceOnly
+        • unsigned-intent state · signed:false · submitted:false
+        • self-custodial disclaimer
+```
+
+**No "Execute"/"Submit" affordance** exists in the UI — it is a read-only visual
+bridge between a DSE decision and a *potential* order. Field → label mapping the UI
+renders (all from the existing response, no semantic change):
+
+| Response field | Terminal label |
+|---|---|
+| `venue` | Venue |
+| `order.side` | Side |
+| `order.type` | Order type |
+| `order.amount` + `order.baseAsset`/`quoteAsset` | Size |
+| `order.reduceOnly` | Reduce-only |
+| `intent.state` + `signed` + `submitted` | Unsigned intent |
+| `tradable: false` + `reason` | "Not directly tradable (advisory-only)" |
+| `disclaimer` | shown verbatim |
+
+The UI client defaults to a **mock** provider (`VITE_EXECUTION_PROVIDER=mock`,
+no network in CI); `http` targets this internal endpoint at
+`VITE_EXECUTION_API_URL` (default `/api/v1`). No keys; the preview is always
+unsigned and never submitted.
+
 ## Out of scope (future, ODR-gated)
 
 Client-side signing, submission/execution to a live chain, multi-venue routing,
