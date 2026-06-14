@@ -59,6 +59,7 @@ async def baas_recommend(
         # NO secrets/PII — no amounts, no positions, only aggregate summary.
         latency_ms = (time.perf_counter() - started) * 1000
         top = resp.recommendations[0] if (resp and resp.recommendations) else None
+        profile = request.app.state.dse_provider_profile  # T8.3: safe descriptor
         request.app.state.baas_metrics.observe(
             asset=body.asset,
             risk_profile=body.risk_profile.value,
@@ -66,6 +67,7 @@ async def baas_recommend(
             latency_ms=latency_ms,
             top_action_type=(top.action.type.value if top else None),
             debug=debug,
+            provider_mode=profile.mode,
         )
         log_baas_event(
             {
@@ -82,5 +84,8 @@ async def baas_recommend(
                 "topUtilityScore": (top.utility_score if top else None),
                 "enrichmentApplied": (resp.analytics_context is not None) if resp else False,
                 "decisionTraceEmitted": (resp.decision_trace is not None) if resp else False,
+                # T8.3: safe provider wiring descriptor — NO keys/endpoints.
+                "providerMode": profile.mode,
+                "providerProfile": profile.to_dict(),
             }
         )

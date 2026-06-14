@@ -24,7 +24,12 @@ from banxe_trading_backend.api import (
     symbols_router,
 )
 from banxe_trading_backend.config import Settings, get_settings
-from banxe_trading_backend.dse import DseEngine, MockDseEngine
+from banxe_trading_backend.dse import (
+    DseEngine,
+    MockDseEngine,
+    assert_mock_only,
+    provider_profile,
+)
 from banxe_trading_backend.earn import (
     EarnRatesCatalog,
     build_earn_provider,
@@ -100,9 +105,14 @@ def _build_quote(settings: Settings) -> QuotePort:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
+    # T8.3 safety-rail: refuse to start with a not-yet-wired live provider config
+    # (ODR). Default everywhere is mock; this never trips in sandbox/CI.
+    assert_mock_only(settings)
     app = FastAPI(title=settings.app_name, version=__version__)
 
     app.state.settings = settings
+    # T8.3: safe (non-secret) provider descriptor for observability.
+    app.state.dse_provider_profile = provider_profile(settings)
     app.state.exchange = _build_exchange(settings)
     app.state.market_data = _build_market_data(settings)
     app.state.quote = _build_quote(settings)

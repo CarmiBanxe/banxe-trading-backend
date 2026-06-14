@@ -30,6 +30,18 @@ info:
     disabled". There is NO SLA, NO billing, NO partner tiering and NO rate limits
     (future ODR). Read-only and side-effect-free: it ranks and explains, it does
     NOT execute. No partner API keys are required in sandbox.
+
+    DATA PROVIDERS & MODES (T8.3): the DSE reads from a provider-layer over four
+    data-source domains — market/risk (volatility, VaR, drawdown, liquidity),
+    sentiment (news / on-chain / social), stress-test data, and earn/yield. Each
+    domain has a provider seam selectable by env (BANXE_DSE_MARKET_PROVIDER,
+    BANXE_DSE_SENTIMENT_PROVIDER, BANXE_DSE_STRESS_PROVIDER, BANXE_DSE_EARN_PROVIDER)
+    plus an overall mode BANXE_DSE_PROVIDER_MODE. The ONLY implemented value is
+    `mock`, and the default everywhere is `mock` (modes `sandbox-live` / `prod-live`
+    are future). Any non-mock provider/mode is an OPERATOR DECISION (ODR) requiring
+    compliance sign-off (MiCA / BaaS) and is NOT enabled here — the service refuses
+    to start with a non-mock configuration. This section adds NO request/response
+    fields and NO provider-specific schema: the contract is identical across modes.
 paths:
   /v1/dss/recommend:
     post:

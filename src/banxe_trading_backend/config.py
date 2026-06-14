@@ -80,6 +80,28 @@ class Settings(BaseSettings):
     dse_risk_provider: str = "mock"
     dse_earn_provider: str = "mock"
 
+    # --- DSE provider-layer & future live-provider seams (T8.3) ---
+    # OVERALL provider mode. Only "mock" is implemented and is the default; any
+    # other value ("sandbox-live" / "prod-live") is OPERATOR-GATED (ODR) and the
+    # app refuses to start with it (no live impl exists). T8.3 adds wiring +
+    # safety-rails ONLY — it activates no live provider and changes no behaviour.
+    dse_provider_mode: str = "mock"
+    # Market-data source feeding DSE risk metrics (volatility/VaR/drawdown/liq).
+    # Mock by default; future live source is ODR-gated.
+    dse_market_provider: str = "mock"
+    # Placeholder live API-key / base-URL seams per domain. These are EMPTY by
+    # default and MUST stay empty in code — any real value belongs to deployment
+    # env and is OPERATOR DECISION (ODR) + compliance (MiCA / BaaS). They are
+    # unused while the mode is "mock" (no live client reads them).
+    dse_market_api_key: str = ""
+    dse_market_base_url: str = ""
+    dse_sentiment_api_key: str = ""
+    dse_sentiment_base_url: str = ""
+    dse_stress_api_key: str = ""
+    dse_stress_base_url: str = ""
+    dse_earn_api_key: str = ""
+    dse_earn_base_url: str = ""
+
     # --- read-only Risk/Earn BaaS sandbox surface (T7.5) ---
     # GET /v1/risk/greeks + GET /v1/earn/rates — advisory, READ-ONLY, sandbox.
     # Mock by default (deterministic, no network/keys). Real providers are
