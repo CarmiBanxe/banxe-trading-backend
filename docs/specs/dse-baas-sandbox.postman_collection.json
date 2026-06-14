@@ -1,0 +1,89 @@
+{
+  "info": {
+    "name": "BANXE DSE Sandbox",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Advisory-only DSE BaaS sandbox (T7.4). POST /v1/dss/recommend returns explainable recommendations with Risk/Earn metrics. Sandbox returns mock/simulated data — NOT real-money, NO execution, NO keys. Importable into Postman or Hoppscotch."
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://sandbox.api.banxe.example", "type": "string" },
+    { "key": "apiKey", "value": "YOUR_KEY_HERE", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Recommend — spot (BTC, balanced)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "content-type", "value": "application/json" },
+          { "key": "authorization", "value": "Bearer {{apiKey}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/v1/dss/recommend",
+          "host": ["{{baseUrl}}"],
+          "path": ["v1", "dss", "recommend"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"asset\": \"BTCUSDT\",\n  \"portfolioValueUsd\": \"10000\",\n  \"riskProfile\": \"balanced\",\n  \"includeSentiment\": true,\n  \"includeStressTests\": true\n}"
+        }
+      }
+    },
+    {
+      "name": "Recommend — perps (ETH, aggressive, open position)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "content-type", "value": "application/json" },
+          { "key": "authorization", "value": "Bearer {{apiKey}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/v1/dss/recommend",
+          "host": ["{{baseUrl}}"],
+          "path": ["v1", "dss", "recommend"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"asset\": \"ETHUSDT\",\n  \"portfolioValueUsd\": \"25000\",\n  \"riskProfile\": \"aggressive\",\n  \"currentPositions\": [{ \"asset\": \"ETHUSDT\", \"sizeUsd\": \"5000\", \"side\": \"long\" }]\n}"
+        }
+      }
+    },
+    {
+      "name": "Recommend — earn (USDC, conservative)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "content-type", "value": "application/json" },
+          { "key": "authorization", "value": "Bearer {{apiKey}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/v1/dss/recommend",
+          "host": ["{{baseUrl}}"],
+          "path": ["v1", "dss", "recommend"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"asset\": \"USDC\",\n  \"portfolioValueUsd\": \"50000\",\n  \"riskProfile\": \"conservative\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Recommend — custom weights (no sentiment/stress)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "content-type", "value": "application/json" },
+          { "key": "authorization", "value": "Bearer {{apiKey}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/v1/dss/recommend",
+          "host": ["{{baseUrl}}"],
+          "path": ["v1", "dss", "recommend"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"asset\": \"BTCUSDT\",\n  \"portfolioValueUsd\": \"10000\",\n  \"riskProfile\": \"custom\",\n  \"customWeights\": { \"w1ExpectedReturn\": \"2.0\", \"w2Volatility\": \"0.5\", \"w3Var99\": \"1.0\", \"w4Drawdown\": \"1.0\", \"w5Liquidity\": \"1.0\" },\n  \"includeSentiment\": false,\n  \"includeStressTests\": false\n}"
+        }
+      }
+    }
+  ]
+}
