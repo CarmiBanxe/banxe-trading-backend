@@ -87,8 +87,8 @@ def test_non_sandbox_partner_mode_fails_closed() -> None:
         "/api/v1/dss/recommend",
         json={**_BODY, "partnerContext": {"mode": "production"}},
     )
-    assert resp.status_code == 422
-    assert "OPERATOR DECISION REQUIRED" in resp.json()["detail"]
+    assert resp.status_code == 422  # schema-layer fail-closed (request validation)
+    assert "OPERATOR DECISION REQUIRED" in json.dumps(resp.json())
 
 
 def test_malformed_partner_id_is_rejected() -> None:

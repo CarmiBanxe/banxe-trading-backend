@@ -118,7 +118,13 @@ components:
           { type: string, nullable: true, maxLength: 64, pattern: "^[A-Za-z0-9._:-]+$" }
         clientRef:
           { type: string, nullable: true, maxLength: 64, pattern: "^[A-Za-z0-9._:-]+$" }
-        mode: { type: string, default: "sandbox", description: "only 'sandbox' supported" }
+        mode:
+          {
+            type: string,
+            enum: [sandbox],
+            default: "sandbox",
+            description: "only 'sandbox' supported; any other value fails closed (422, ODR)",
+          }
     ProductMetadata:
       type: object
       additionalProperties: false

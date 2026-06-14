@@ -10,7 +10,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Annotated
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from banxe_trading_backend.models import CamelModel, DecimalStr
 
@@ -262,6 +262,17 @@ class PartnerContext(CamelModel):
     partner_id: PartnerRef | None = None
     client_ref: PartnerRef | None = None
     mode: str = "sandbox"  # only "sandbox" supported; non-sandbox fails closed
+
+    @field_validator("mode")
+    @classmethod
+    def _sandbox_only(cls, value: str) -> str:
+        # Schema-layer fail-closed: reject any non-sandbox mode at request parse.
+        if value != "sandbox":
+            raise ValueError(
+                f"partner mode {value!r} is OPERATOR DECISION REQUIRED "
+                "(sandbox-only; no production partner mode is wired)"
+            )
+        return value
 
 
 class ProductMetadata(CamelModel):
