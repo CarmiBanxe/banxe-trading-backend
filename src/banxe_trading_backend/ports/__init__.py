@@ -26,6 +26,15 @@ from .exchange_port import (
     StaleRate,
     ValidationError,
 )
+from .fee_engine_port import (
+    FeeComponent,
+    FeeEnginePort,
+    FeePreviewRequest,
+    FeePreviewResponse,
+    MockFeeEngine,
+    ProductType,
+    build_fee_provider,
+)
 from .lifi_quote import (
     HttpxLifiTransport,
     LifiQuoteAdapter,
@@ -64,6 +73,13 @@ __all__ = [
     "PartialFillTimeout",
     "MarketDataPort",
     "InMemoryMockMarketData",
+    "FeeEnginePort",
+    "MockFeeEngine",
+    "FeePreviewRequest",
+    "FeePreviewResponse",
+    "FeeComponent",
+    "ProductType",
+    "build_fee_provider",
     "MarketMakingPort",
     "MockMarketMakingStrategy",
     "MmPreviewRequest",
