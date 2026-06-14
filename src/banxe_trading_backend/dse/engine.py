@@ -41,14 +41,16 @@ from .models import (
     EarnMetrics,
     Greeks,
     ModelVersions,
+    ProductMetadata,
     Recommendation,
     RecommendRequest,
     RecommendResponse,
     RiskMetrics,
     UtilityComponent,
 )
+from .product import build_product_metadata
 from .profiles import weights_for
-from .provider_foundation import resolve_foundation
+from .provider_foundation import foundation_profile, resolve_foundation
 from .providers import (
     MockSentimentProvider,
     MockStressProvider,
@@ -202,6 +204,7 @@ class MockDseEngine:
         earn_provider: EarnRatesProvider | None = None,
         enrichment: DseAnalyticsEnrichmentService | None = None,
         debug_enabled: bool = False,
+        foundation_profile: dict[str, dict[str, str]] | None = None,
         quote_port: QuotePort | None = None,
         market_data: MarketDataPort | None = None,
         exchange: ExchangePort | None = None,
@@ -218,6 +221,8 @@ class MockDseEngine:
         self._enrichment = enrichment
         # T7.8 sandbox decision-trace gate (operator env flag; default OFF).
         self._debug_enabled = debug_enabled
+        # S11 safe provenance for the opt-in partner/product surface (no secrets).
+        self._foundation_profile = foundation_profile or {}
         self._quote_port = quote_port
         self._market_data = market_data
         self._exchange = exchange
@@ -245,6 +250,7 @@ class MockDseEngine:
             earn_provider=build_earn_provider(settings.dse_earn_provider),
             enrichment=enrichment,
             debug_enabled=settings.dse_debug_enabled,
+            foundation_profile=foundation_profile(foundation),
             quote_port=quote,
         )
 
@@ -368,6 +374,19 @@ class MockDseEngine:
                 ),
             )
 
+        # S11: opt-in partner/product metadata (only when partnerContext is set).
+        # Fail-closed on a non-sandbox partner mode (ValueError → 422 at the API).
+        # No utility/ranking change; safe provenance only (no secrets).
+        product: ProductMetadata | None = None
+        if request.partner_context is not None:
+            product = build_product_metadata(
+                request,
+                model_versions=_MODEL_VERSIONS,
+                explanation_version=_EXPLANATION_VERSION,
+                request_id=trace_id,
+                foundation_profile=self._foundation_profile,
+            )
+
         return RecommendResponse(
             recommendations=ranked,
             sentiment=sentiment,
@@ -377,5 +396,6 @@ class MockDseEngine:
             trace_id=trace_id,
             explanation_version=_EXPLANATION_VERSION,
             decision_trace=decision_trace,
+            product=product,
             as_of=self._now(),
         )

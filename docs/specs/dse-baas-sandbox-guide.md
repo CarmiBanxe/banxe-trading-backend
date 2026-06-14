@@ -117,6 +117,47 @@ identical across modes** — no provider-specific fields are added. Observabilit
 carries a safe `providerMode` (e.g. `mock`) so a future mock-vs-live switch is
 distinguishable in logs/metrics, with no secrets exposed.
 
+## Partner / product surface (S11, opt-in, non-breaking)
+
+`POST /v1/dss/recommend` can return an **optional** `product` metadata block for
+partner/terminal UIs. It is **opt-in**: send a `partnerContext` and the response
+gains a `product` block; omit it and the response is exactly as before
+(`product` is `null`). **Non-breaking** — no existing field changes; ranking and
+utility are unchanged.
+
+Request (opt-in):
+
+```json
+{ "asset": "BTCUSDT", "portfolioValueUsd": "10000", "riskProfile": "balanced",
+  "partnerContext": { "partnerId": "acme-sandbox", "clientRef": "req-001", "mode": "sandbox" } }
+```
+
+- `partnerContext` is **advisory, metering-READY only** — opaque, bounded
+  (`partnerId`/`clientRef` ≤ 64 chars, `^[A-Za-z0-9._:-]+$`), with **no auth, no
+  billing, no entitlement**. Only `mode: "sandbox"` is supported; any other mode
+  **fails closed** (`422`, OPERATOR DECISION REQUIRED).
+
+Response `product` block (safe, no secrets):
+
+```json
+{ "product": {
+    "surface": "dse-baas-sandbox", "engineMode": "sandbox-mock",
+    "advisory": true, "executes": false, "selfCustodial": true,
+    "determinism": "deterministic-mock",
+    "providerProvenance": { "market": "mock", "sentiment": "mock", "stress": "mock" },
+    "modelVersions": { "pricing": "...", "sentiment": "...", "kelly": "...", "stress": "..." },
+    "explanationVersion": "dss-explain-0.1.0",
+    "explanationModel": "U_a = w1·ER − w2·σ − w3·VaR99 − w4·DD + w5·Liq",
+    "requestId": "dss-<hash>",
+    "partner": { "partnerId": "acme-sandbox", "clientRef": "req-001", "mode": "sandbox" },
+    "disclaimer": "Advisory decision-support (sandbox / mock data) ..." } }
+```
+
+`providerProvenance` is a **safe class label** per domain
+(`mock` | `stub` | `inert-live-ready`) — never keys or endpoints. `requestId`
+equals `traceId` for correlation (no billing). Pair this with the per-rec
+`utilityBreakdown` / `topDriver` for a terminal Decision Assistant panel.
+
 ## Analytics enrichment (additive, informational) — T7.6
 
 `POST /v1/dss/recommend` **internally** consults the same sandbox Risk Greeks and
