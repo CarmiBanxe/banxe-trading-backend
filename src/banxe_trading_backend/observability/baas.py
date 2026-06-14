@@ -126,7 +126,11 @@ def log_baas_event(event: dict[str, Any]) -> None:
 
 
 async def dse_baas_health(
-    *, sandbox_enabled: bool, engine: DseEngine, provider_mode: str = "mock"
+    *,
+    sandbox_enabled: bool,
+    engine: DseEngine,
+    provider_mode: str = "mock",
+    foundation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Internal readiness check: flag + a no-network mock dry-run of the DSE.
 
@@ -136,7 +140,11 @@ async def dse_baas_health(
     """
     from banxe_trading_backend.dse import RecommendRequest
 
-    checks: dict[str, Any] = {"sandboxEnabled": sandbox_enabled, "providerMode": provider_mode}
+    checks: dict[str, Any] = {
+        "sandboxEnabled": sandbox_enabled,
+        "providerMode": provider_mode,
+        "foundation": foundation or {},
+    }
     status = "OK" if sandbox_enabled else "DEGRADED"
     try:
         resp = await engine.recommend(

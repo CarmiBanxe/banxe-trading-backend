@@ -48,13 +48,12 @@ from .models import (
     UtilityComponent,
 )
 from .profiles import weights_for
+from .provider_foundation import resolve_foundation
 from .providers import (
     MockSentimentProvider,
     MockStressProvider,
     SentimentProvider,
     StressProvider,
-    build_sentiment_provider,
-    build_stress_provider,
 )
 from .utility import CandidateMetrics, UtilityTerm, utility_components, utility_score
 
@@ -236,9 +235,12 @@ class MockDseEngine:
                 build_earn_provider(settings.dse_earn_provider),
             ),
         )
+        # S10: sentiment + stress are resolved through the provider foundation
+        # (tier matrix, fail-closed). Default tier=mock → identical to before.
+        foundation = resolve_foundation(settings)
         return cls(
-            sentiment_provider=build_sentiment_provider(settings.dse_sentiment_provider),
-            stress_provider=build_stress_provider(settings.dse_stress_provider),
+            sentiment_provider=foundation.sentiment,
+            stress_provider=foundation.stress,
             risk_provider=build_risk_provider(settings.dse_risk_provider),
             earn_provider=build_earn_provider(settings.dse_earn_provider),
             enrichment=enrichment,
