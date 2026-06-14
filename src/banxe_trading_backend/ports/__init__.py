@@ -50,6 +50,15 @@ from .market_making_port import (
     MockMarketMakingStrategy,
     build_mm_provider,
 )
+from .quant_engine_port import (
+    MockQuantEngine,
+    QuantEnginePort,
+    QuantPreviewRequest,
+    QuantPreviewResponse,
+    QuantProductType,
+    QuantSignal,
+    build_quant_provider,
+)
 from .quote_port import MockQuoteAdapter, QuotePort
 from .wallet_auth_port import SiweAuthAdapter, WalletAuthError, WalletAuthPort
 
@@ -86,6 +95,13 @@ __all__ = [
     "MmPreviewResponse",
     "MmRung",
     "build_mm_provider",
+    "QuantEnginePort",
+    "MockQuantEngine",
+    "QuantPreviewRequest",
+    "QuantPreviewResponse",
+    "QuantSignal",
+    "QuantProductType",
+    "build_quant_provider",
     "QuotePort",
     "MockQuoteAdapter",
     "LifiQuoteAdapter",

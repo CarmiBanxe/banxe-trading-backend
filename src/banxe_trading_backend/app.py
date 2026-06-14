@@ -21,6 +21,7 @@ from banxe_trading_backend.api import (
     internal_router,
     market_making_router,
     orders_router,
+    quant_router,
     quotes_router,
     rate_router,
     risk_router,
@@ -52,11 +53,13 @@ from banxe_trading_backend.ports import (
     MarketDataPort,
     MarketMakingPort,
     MockQuoteAdapter,
+    QuantEnginePort,
     QuotePort,
     SiweAuthAdapter,
     WalletAuthPort,
     build_fee_provider,
     build_mm_provider,
+    build_quant_provider,
 )
 from banxe_trading_backend.risk import RiskGreeksProvider, build_risk_greeks_provider
 from banxe_trading_backend.ws import orderbook_router
@@ -115,6 +118,12 @@ def _build_fee_engine(settings: Settings) -> FeeEnginePort:
     return build_fee_provider(settings.fee_provider)
 
 
+def _build_quant_engine(settings: Settings) -> QuantEnginePort:
+    # S14 quant-moat engine — mock default; non-mock fails closed (operator-gated:
+    # a live quant stack is ODR). Advisory analytics only, no live models.
+    return build_quant_provider(settings.quant_provider)
+
+
 def _build_quote(settings: Settings) -> QuotePort:
     # Provider-parameterized. Default "mock" → deterministic, no network.
     # "lifi" → public LI.FI quote API (no key; ADR-083 S6.5); constructed lazily
@@ -152,6 +161,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.mm = _build_mm(settings)
     # S13: dynamic fee engine (advisory/analytics; mock default; fails closed).
     app.state.fee_engine = _build_fee_engine(settings)
+    # S14: quant-moat engine (advisory analytics; mock default; fails closed).
+    app.state.quant = _build_quant_engine(settings)
 
     @app.get("/healthz", tags=["health"])
     async def healthz() -> dict[str, str]:
@@ -180,6 +191,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(market_making_router, prefix=api)
     # S13: internal dynamic fee preview (advisory/analytics; NOT external /v1).
     app.include_router(fees_router, prefix=api)
+    # S14: internal quant-moat preview (advisory analytics; NOT external /v1).
+    app.include_router(quant_router, prefix=api)
 
     return app
 

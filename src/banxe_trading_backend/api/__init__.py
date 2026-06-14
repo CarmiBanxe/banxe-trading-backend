@@ -11,6 +11,7 @@ from .fees import router as fees_router
 from .internal import router as internal_router
 from .market_making import router as market_making_router
 from .orders import router as orders_router
+from .quant import router as quant_router
 from .quotes import router as quotes_router
 from .rate import router as rate_router
 from .risk import router as risk_router
@@ -35,4 +36,5 @@ __all__ = [
     "execution_router",
     "market_making_router",
     "fees_router",
+    "quant_router",
 ]
