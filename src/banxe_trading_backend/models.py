@@ -207,3 +207,34 @@ class SessionResponse(CamelModel):
     address: str
     token: str  # opaque, HMAC-signed; the backend holds no private keys
     expires_at: str
+
+
+# --- quotes (QuotePort / LI.FI aggregator; ADR-083 QuotePort, S6.5) ---
+
+
+class QuoteRequest(CamelModel):
+    """Aggregator quote request. Amount is atomic-unit decimal string (I-01)."""
+
+    from_chain: str
+    to_chain: str
+    from_token: str
+    to_token: str
+    amount: DecimalStr  # fromAmount, smallest unit (wei-like) — never float
+    from_address: str | None = None
+    slippage: DecimalStr | None = None  # fraction, e.g. "0.005"
+
+
+class QuoteResponse(CamelModel):
+    """Normalized aggregator quote. All monetary amounts are Decimal strings."""
+
+    from_chain: str
+    to_chain: str
+    from_token: str
+    to_token: str
+    amount: DecimalStr  # echoed fromAmount (atomic)
+    estimated_return: DecimalStr  # toAmount (atomic) — never float
+    estimated_return_min: DecimalStr | None = None  # toAmountMin (atomic)
+    slippage: DecimalStr | None = None
+    provider: str  # aggregator/tool that produced the route
+    hops: int  # number of route steps
+    route: dict[str, object] | None = None  # extra route metadata

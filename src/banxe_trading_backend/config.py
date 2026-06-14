@@ -52,6 +52,21 @@ class Settings(BaseSettings):
     # Submission HTTP timeout (seconds) — env-only, safe default. No endpoint here.
     dydx_submit_timeout_s: float = 10.0
 
+    # --- QuotePort (LI.FI aggregator) — env-gated, mock default (S6.5) ---
+    # Default provider is the in-memory mock (no network in CI/dev). The LI.FI
+    # adapter activates only when quote_provider == "lifi". The base URL is the
+    # PUBLIC LI.FI API (no key required for public quotes).
+    quote_provider: str = "mock"
+    lifi_base_url: str = "https://li.quest/v1"
+    # OPTIONAL seams — OPERATOR-GATED, default DISABLED. No real values committed.
+    # lifi_api_key: unused this sprint (seam only — never sent in S6.5).
+    # integrator + fee attach to LI.FI requests ONLY when BOTH are set (id present
+    # AND fee_bps > 0); otherwise no integrator/fee params are sent.
+    lifi_api_key: str = ""
+    lifi_integrator: str = ""
+    lifi_fee_bps: int = 0
+    lifi_timeout_s: float = 10.0
+
     # --- public (non-secret) URLs only ---
     # Real upstream URLs are injected via env at deploy time; defaults are local.
     orderbook_ws_url: str | None = None

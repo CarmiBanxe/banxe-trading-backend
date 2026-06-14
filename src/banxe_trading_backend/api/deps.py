@@ -9,7 +9,12 @@ from __future__ import annotations
 
 from fastapi import Depends, HTTPException, Request
 
-from banxe_trading_backend.ports import ExchangePort, MarketDataPort, WalletAuthPort
+from banxe_trading_backend.ports import (
+    ExchangePort,
+    MarketDataPort,
+    QuotePort,
+    WalletAuthPort,
+)
 from banxe_trading_backend.ports.wallet_auth_port import Session
 
 
@@ -23,6 +28,12 @@ def get_market_data(request: Request) -> MarketDataPort:
     """Return the configured MarketDataPort adapter (mock in the skeleton)."""
     market_data: MarketDataPort = request.app.state.market_data
     return market_data
+
+
+def get_quote_provider(request: Request) -> QuotePort:
+    """Return the configured QuotePort (mock by default; LI.FI when env-set)."""
+    quote: QuotePort = request.app.state.quote
+    return quote
 
 
 def get_wallet_auth(request: Request) -> WalletAuthPort:
