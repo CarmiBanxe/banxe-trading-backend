@@ -27,6 +27,7 @@ from banxe_trading_backend.api import (
     rate_router,
     risk_router,
     sandbox_router,
+    sandbox_scenarios_router,
     symbols_router,
 )
 from banxe_trading_backend.config import Settings, get_settings
@@ -208,6 +209,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(marketplace_router, prefix=api)
     # SBOX-1: internal unified sandbox-status surface (read-only; NOT external /v1).
     app.include_router(sandbox_router, prefix=api)
+    # SBOX-2: internal deterministic demo scenarios (read-only; NOT external /v1).
+    app.include_router(sandbox_scenarios_router, prefix=api)
 
     return app
 
