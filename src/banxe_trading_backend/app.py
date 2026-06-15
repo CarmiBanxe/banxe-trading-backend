@@ -26,6 +26,7 @@ from banxe_trading_backend.api import (
     quotes_router,
     rate_router,
     risk_router,
+    sandbox_partners_router,
     sandbox_router,
     sandbox_scenarios_router,
     sandbox_sessions_router,
@@ -217,6 +218,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(sandbox_scenarios_router, prefix=api)
     # SBOX-3: internal sandbox session recorder & replay (NOT external /v1).
     app.include_router(sandbox_sessions_router, prefix=api)
+    # SBOX-4: internal partner sandbox pack (mock profiles; NOT external /v1).
+    app.include_router(sandbox_partners_router, prefix=api)
 
     return app
 
