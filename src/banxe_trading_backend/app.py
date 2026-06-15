@@ -28,6 +28,7 @@ from banxe_trading_backend.api import (
     risk_router,
     sandbox_router,
     sandbox_scenarios_router,
+    sandbox_sessions_router,
     symbols_router,
 )
 from banxe_trading_backend.config import Settings, get_settings
@@ -67,6 +68,7 @@ from banxe_trading_backend.ports import (
 from banxe_trading_backend.risk import RiskGreeksProvider, build_risk_greeks_provider
 from banxe_trading_backend.services.decision_lineage import build_decision_lineage_logger
 from banxe_trading_backend.services.intent_preview import build_execution_preview_provider
+from banxe_trading_backend.services.sandbox_sessions import SandboxSessionStore
 from banxe_trading_backend.ws import orderbook_router
 
 
@@ -175,6 +177,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # G1L: inert, mock-safe decision-lineage audit logger (fail-closed; no provider,
     # no keys, no network, no new endpoint). Default enabled; no-op when disabled.
     app.state.decision_lineage_logger = build_decision_lineage_logger(settings)
+    # SBOX-3: in-memory sandbox session store (mock-safe; no persistence, no network).
+    app.state.sandbox_sessions = SandboxSessionStore()
 
     @app.get("/healthz", tags=["health"])
     async def healthz() -> dict[str, str]:
@@ -211,6 +215,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(sandbox_router, prefix=api)
     # SBOX-2: internal deterministic demo scenarios (read-only; NOT external /v1).
     app.include_router(sandbox_scenarios_router, prefix=api)
+    # SBOX-3: internal sandbox session recorder & replay (NOT external /v1).
+    app.include_router(sandbox_sessions_router, prefix=api)
 
     return app
 
