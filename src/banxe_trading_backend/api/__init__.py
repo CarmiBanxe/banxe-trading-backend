@@ -18,6 +18,7 @@ from .rate import router as rate_router
 from .risk import router as risk_router
 from .sandbox import router as sandbox_router
 from .sandbox_scenarios import router as sandbox_scenarios_router
+from .sandbox_sessions import router as sandbox_sessions_router
 from .symbols import router as symbols_router
 
 __all__ = [
@@ -43,4 +44,5 @@ __all__ = [
     "marketplace_router",
     "sandbox_router",
     "sandbox_scenarios_router",
+    "sandbox_sessions_router",
 ]

@@ -146,9 +146,39 @@ class DecisionLineageLogger:
         Returns the correlation id used (generated if not supplied). When disabled,
         returns the supplied/empty correlation id without building an event.
         """
-        if not self._enabled:
+        event = self.record_event(
+            layer=layer,
+            request_payload=request_payload,
+            response_payload=response_payload,
+            provider_versions=provider_versions,
+            partner_id=partner_id,
+            user_id=user_id,
+            correlation_id=correlation_id,
+            rationale=rationale,
+        )
+        if event is None:
             return correlation_id or ""
-        corr = correlation_id or str(uuid4())
+        return event.correlation_id or ""
+
+    def record_event(
+        self,
+        *,
+        layer: LineageLayer,
+        request_payload: dict[str, Any],
+        response_payload: dict[str, Any],
+        provider_versions: dict[str, str] | None = None,
+        partner_id: str | None = None,
+        user_id: str | None = None,
+        correlation_id: str | None = None,
+        rationale: str | None = None,
+    ) -> DecisionLineageEvent | None:
+        """Like :meth:`record` but returns the event (None when disabled).
+
+        Used by the endpoint helper so a recorded event can be linked to an open
+        sandbox session (SBOX-3) by its ``id``.
+        """
+        if not self._enabled:
+            return None
         event = DecisionLineageEvent(
             id=str(uuid4()),
             timestamp=datetime.now(UTC),
@@ -158,11 +188,11 @@ class DecisionLineageLogger:
             request_payload=request_payload,
             response_payload=response_payload,
             provider_versions=dict(provider_versions or _DEFAULT_PROVIDER_VERSIONS[layer]),
-            correlation_id=corr,
+            correlation_id=correlation_id or str(uuid4()),
             rationale=rationale,
         )
         self.log(event)
-        return corr
+        return event
 
 
 def build_decision_lineage_logger(settings: Any) -> DecisionLineageLogger:
@@ -192,7 +222,7 @@ def record_lineage(
         return
     try:
         partner_id, user_id = _extract_principals(body)
-        logger.record(
+        event = logger.record_event(
             layer=layer,
             request_payload=_to_payload(body),
             response_payload=_to_payload(response),
@@ -202,8 +232,34 @@ def record_lineage(
             correlation_id=_extract_correlation(response),
             rationale=rationale,
         )
+        # SBOX-3: if a demo run names a sandbox session, link this lineage event to
+        # it (best-effort; unknown session / no header → no-op).
+        if event is not None:
+            _attach_to_sandbox_session(request, layer, event.id)
     except Exception as exc:  # noqa: BLE001 - fail-closed: never affect the response
         _LOG.warning("decision-lineage capture failed (%s); business flow unaffected", exc)
+
+
+# Header a demo run sends to link advisory requests to a sandbox session (SBOX-3).
+_SANDBOX_SESSION_HEADER = "X-Banxe-Sandbox-Session-Id"
+
+
+def _attach_to_sandbox_session(
+    request: Request, layer: LineageLayer, lineage_event_id: str
+) -> None:
+    """Append a lineage step to an open sandbox session, if one is named.
+
+    Duck-typed against ``app.state.sandbox_sessions`` so G1L does not depend on the
+    sandbox module. No header / no store / unknown session → silently does nothing.
+    """
+    session_id = request.headers.get(_SANDBOX_SESSION_HEADER)
+    if not session_id:
+        return
+    store = getattr(request.app.state, "sandbox_sessions", None)
+    attach = getattr(store, "attach_lineage", None)
+    if attach is None:
+        return
+    attach(session_id, layer, lineage_event_id)
 
 
 def _extract_principals(body: Any) -> tuple[str | None, str | None]:
