@@ -26,6 +26,7 @@ from banxe_trading_backend.api import (
     quotes_router,
     rate_router,
     risk_router,
+    sandbox_router,
     symbols_router,
 )
 from banxe_trading_backend.config import Settings, get_settings
@@ -205,6 +206,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(quant_router, prefix=api)
     # S15: internal ecosystem/marketplace registry (read-only; NOT external /v1).
     app.include_router(marketplace_router, prefix=api)
+    # SBOX-1: internal unified sandbox-status surface (read-only; NOT external /v1).
+    app.include_router(sandbox_router, prefix=api)
 
     return app
 
