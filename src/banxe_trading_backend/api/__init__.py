@@ -16,6 +16,7 @@ from .quant import router as quant_router
 from .quotes import router as quotes_router
 from .rate import router as rate_router
 from .risk import router as risk_router
+from .sandbox import router as sandbox_router
 from .symbols import router as symbols_router
 
 __all__ = [
@@ -39,4 +40,5 @@ __all__ = [
     "fees_router",
     "quant_router",
     "marketplace_router",
+    "sandbox_router",
 ]
