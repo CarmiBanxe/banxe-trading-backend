@@ -26,6 +26,7 @@ from banxe_trading_backend.api import (
     quotes_router,
     rate_router,
     risk_router,
+    sandbox_gamification_router,
     sandbox_partners_router,
     sandbox_router,
     sandbox_scenarios_router,
@@ -69,6 +70,7 @@ from banxe_trading_backend.ports import (
 from banxe_trading_backend.risk import RiskGreeksProvider, build_risk_greeks_provider
 from banxe_trading_backend.services.decision_lineage import build_decision_lineage_logger
 from banxe_trading_backend.services.intent_preview import build_execution_preview_provider
+from banxe_trading_backend.services.sandbox_gamification import SandboxGamificationStore
 from banxe_trading_backend.services.sandbox_sessions import SandboxSessionStore
 from banxe_trading_backend.ws import orderbook_router
 
@@ -180,6 +182,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.decision_lineage_logger = build_decision_lineage_logger(settings)
     # SBOX-3: in-memory sandbox session store (mock-safe; no persistence, no network).
     app.state.sandbox_sessions = SandboxSessionStore()
+    # SBOX-5: in-memory educational gamification store (sandbox/demo-only; no money).
+    app.state.sandbox_gamification = SandboxGamificationStore()
 
     @app.get("/healthz", tags=["health"])
     async def healthz() -> dict[str, str]:
@@ -220,6 +224,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(sandbox_sessions_router, prefix=api)
     # SBOX-4: internal partner sandbox pack (mock profiles; NOT external /v1).
     app.include_router(sandbox_partners_router, prefix=api)
+    # SBOX-5: internal educational gamification (sandbox/demo-only; NOT external /v1).
+    app.include_router(sandbox_gamification_router, prefix=api)
 
     return app
 
