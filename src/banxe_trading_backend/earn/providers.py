@@ -79,6 +79,11 @@ def build_earn_provider(name: str) -> EarnRatesProvider:
     """Resolve an earn provider by name. Only 'mock' is wired (default)."""
     if name == "mock":
         return MockEarnRatesProvider()
+    if name == "crypto-earn":
+        # M1.2: legacy banxe-crypto-earn product/fee structure as advisory rates
+        # (mock-safe; no live coupling). Extends the seam, default stays "mock".
+        from banxe_trading_backend.earn.crypto_earn import CryptoEarnRatesProvider
+        return CryptoEarnRatesProvider()
     # Real StakeKit/Aave-style providers are OPERATOR-GATED (keys/network).
     raise ValueError(
         f"earn provider {name!r} is not wired (operator-gated); only 'mock' is available"
