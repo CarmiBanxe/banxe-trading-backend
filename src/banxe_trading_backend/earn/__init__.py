@@ -20,6 +20,10 @@ from .rates import (
     build_earn_rates_catalog,
     earn_rates,
 )
+from .status import (
+    EarnAdvisoryStatus,
+    from_legacy,
+)
 
 __all__ = [
     "EarnRatesProvider",
@@ -33,4 +37,6 @@ __all__ = [
     "DEFAULT_BASKET",
     "build_earn_rates_catalog",
     "earn_rates",
+    "EarnAdvisoryStatus",
+    "from_legacy",
 ]
