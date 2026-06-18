@@ -79,6 +79,19 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/InstrumentAssetXref" }
+  /v1/markets/breakdown:
+    get:
+      operationId: getMarketsBreakdown
+      summary: Markets breakdown (per-base / per-quote counts, read-only)
+      description: >
+        Read-only per-base-asset and per-quote-asset market counts derived from the markets bundle.
+        Integer meta counts only; NO balances, APY/rates, fees, execution, or payments.
+      responses:
+        "200":
+          description: Markets breakdown (sandbox-mock)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MarketsBreakdown" }
 components:
   schemas:
     InstrumentInfo:
@@ -112,3 +125,24 @@ components:
         instrument: { $ref: "#/components/schemas/InstrumentInfo" }
         baseAsset: { $ref: "#/components/schemas/CryptoAssetMetadata" }
         quoteAsset: { $ref: "#/components/schemas/CryptoAssetMetadata" }
+
+    MarketAssetCount:
+      type: object
+      required: [asset, count]
+      additionalProperties: false
+      properties:
+        asset:
+          type: string
+          description: >
+            asset symbol; canonical examples BTC / ETH / EUR, but any catalogued asset may appear
+            (non-exhaustive, matches runtime).
+        count: { type: integer, description: "market count for this asset (meta, not a money value)" }
+    MarketsBreakdown:
+      type: object
+      required: [byBase, byQuote, total, source]
+      additionalProperties: false
+      properties:
+        byBase: { type: array, items: { $ref: "#/components/schemas/MarketAssetCount" } }
+        byQuote: { type: array, items: { $ref: "#/components/schemas/MarketAssetCount" } }
+        total: { type: integer, description: "number of markets" }
+        source: { type: string, enum: [sandbox-mock] }

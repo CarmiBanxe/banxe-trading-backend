@@ -14,6 +14,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from banxe_trading_backend.assets.catalog import asset_catalog
+from banxe_trading_backend.instruments.xref import list_instrument_asset_xref
 from banxe_trading_backend.models import CamelModel
 
 if TYPE_CHECKING:
@@ -51,5 +52,44 @@ def catalogue_breakdown(market_data: MarketDataPort) -> CatalogueBreakdown:
     return CatalogueBreakdown(
         breakdown=[AssetClassCount(asset_class=c, count=counts[c]) for c in ordered],
         total=sum(counts.values()),
+        source=SANDBOX_MOCK,
+    )
+
+
+
+class MarketAssetCount(CamelModel):
+    """Count of markets in which one asset appears as base or quote (integer meta)."""
+
+    asset: str
+    count: int
+
+
+class MarketsBreakdown(CamelModel):
+    """Read-only per-base / per-quote market breakdown (derived summary; not a SoT)."""
+
+    by_base: list[MarketAssetCount]
+    by_quote: list[MarketAssetCount]
+    total: int
+    source: str
+
+
+def markets_breakdown() -> MarketsBreakdown:
+    """Count base/quote assets over the markets bundle (deterministic; fail-closed)."""
+    from banxe_trading_backend.risk.greeks import SANDBOX_MOCK  # lazy: avoid import cycle
+
+    markets = list_instrument_asset_xref()
+    base_counts: dict[str, int] = {}
+    quote_counts: dict[str, int] = {}
+    for m in markets:
+        base_counts[m.base_asset.asset] = base_counts.get(m.base_asset.asset, 0) + 1
+        quote_counts[m.quote_asset.asset] = quote_counts.get(m.quote_asset.asset, 0) + 1
+
+    def _to_list(counts: dict[str, int]) -> list[MarketAssetCount]:
+        return [MarketAssetCount(asset=a, count=counts[a]) for a in sorted(counts)]
+
+    return MarketsBreakdown(
+        by_base=_to_list(base_counts),
+        by_quote=_to_list(quote_counts),
+        total=len(markets),
         source=SANDBOX_MOCK,
     )
