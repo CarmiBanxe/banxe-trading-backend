@@ -12,6 +12,7 @@ from fastapi import FastAPI
 
 from banxe_trading_backend import __version__
 from banxe_trading_backend.api import (
+    accounts_router,
     auth_router,
     baas_dss_router,
     dss_router,
@@ -196,6 +197,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(dss_router, prefix=api)
     app.include_router(risk_router, prefix=api)
     app.include_router(earn_router, prefix=api)
+    app.include_router(accounts_router, prefix=api)
     app.include_router(orders_router, prefix=api)
     # T9.1: internal DSE → unsigned execution-intent bridge (mock/sandbox-only).
     app.include_router(execution_router, prefix=api)
