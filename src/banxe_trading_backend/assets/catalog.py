@@ -118,3 +118,29 @@ def asset_catalog(market_data: MarketDataPort) -> AssetCatalogResponse:
         except Exception:
             continue  # fail-closed: skip malformed config (no fake/partial entry)
     return AssetCatalogResponse(assets=assets, source=SANDBOX_MOCK, disclaimer=_DISCLAIMER)
+
+
+
+def asset_metadata(asset: str) -> CryptoAssetMetadata:
+    """Advisory CryptoAssetMetadata for one asset (reuses _ASSET_META; deterministic default).
+
+    Single-asset accessor over the existing M1.8 source -- no second asset map/catalogue. Falls
+    back to the established generic descriptor for an unconfigured asset (descriptive, not a
+    fabricated balance/price). Read-only / advisory.
+    """
+    from banxe_trading_backend.risk.greeks import SANDBOX_MOCK  # lazy: avoid import cycle
+
+    key = (asset or "").upper()
+    meta = _ASSET_META.get(key, _DEFAULT_META)
+    raw_networks = meta.get("networks", [])
+    networks = [str(n) for n in raw_networks] if isinstance(raw_networks, list) else []
+    raw_dd = meta.get("display_decimals", 8)
+    display_decimals = raw_dd if isinstance(raw_dd, int) else 8
+    return CryptoAssetMetadata(
+        asset=key,
+        name=str(meta.get("name") or key),
+        asset_class=str(meta.get("asset_class", "crypto")),
+        networks=networks,
+        display_decimals=display_decimals,
+        source=SANDBOX_MOCK,
+    )

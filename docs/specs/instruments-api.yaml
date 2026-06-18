@@ -21,6 +21,26 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/InstrumentInfo" }
+  /v1/instruments/{symbol}/assets:
+    get:
+      operationId: getInstrumentAssets
+      summary: Instrument <-> asset cross-reference (composition view, read-only)
+      description: >
+        Read-only composition of a symbol's instrument parameters with the descriptive metadata
+        of its base/quote assets. NO balances, fees, execution, payments, or wallet ops.
+      parameters:
+        - in: path
+          name: symbol
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Instrument-asset cross-reference (sandbox-mock)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstrumentAssetXref" }
+        "404":
+          description: Unknown instrument (fail-closed)
 components:
   schemas:
     InstrumentInfo:
@@ -33,3 +53,24 @@ components:
         minQty: { type: string, description: "min order quantity (decimal, I-01)" }
         maxQty: { type: string, description: "max order quantity (decimal, I-01)" }
         feeScheduleRef: { type: string, description: "fee-schedule reference (no fee computation here)" }
+
+    CryptoAssetMetadata:
+      type: object
+      required: [asset, name, assetClass, networks, displayDecimals, source]
+      additionalProperties: false
+      properties:
+        asset: { type: string }
+        name: { type: string }
+        assetClass: { type: string, enum: [crypto, stablecoin, fiat] }
+        networks: { type: array, items: { type: string } }
+        displayDecimals: { type: integer, description: "display precision (not a money value)" }
+        source: { type: string, enum: [sandbox-mock] }
+    InstrumentAssetXref:
+      type: object
+      required: [symbol, instrument, baseAsset, quoteAsset]
+      additionalProperties: false
+      properties:
+        symbol: { type: string }
+        instrument: { $ref: "#/components/schemas/InstrumentInfo" }
+        baseAsset: { $ref: "#/components/schemas/CryptoAssetMetadata" }
+        quoteAsset: { $ref: "#/components/schemas/CryptoAssetMetadata" }
