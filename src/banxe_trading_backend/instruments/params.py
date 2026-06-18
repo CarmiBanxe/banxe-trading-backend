@@ -51,3 +51,19 @@ def instrument_info(symbol: str) -> InstrumentInfo:
         max_qty=cfg["max_qty"],
         fee_schedule_ref=cfg["fee_schedule_ref"],
     )
+
+
+
+def list_instruments() -> list[InstrumentInfo]:
+    """Deterministic advisory list of all configured instruments (single source; fail-closed).
+
+    Reuses _INSTRUMENT_PARAMS + instrument_info -- no new DTO, no second catalogue. Entries
+    are returned in sorted symbol order; a malformed config entry is skipped (never fabricated).
+    """
+    out: list[InstrumentInfo] = []
+    for symbol in sorted(_INSTRUMENT_PARAMS):
+        try:
+            out.append(instrument_info(symbol))
+        except Exception:
+            continue  # fail-closed: skip malformed config entry (no fabricated instrument)
+    return out

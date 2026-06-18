@@ -1,0 +1,35 @@
+openapi: 3.0.3
+info:
+  title: BANXE advisory instruments catalogue (M1.10)
+  version: "1.0"
+  description: >
+    Read-only advisory instrument catalogue (sandbox-mock, config-as-data). Lists per-symbol
+    trading parameters (tick size, min/max order quantity, fee-schedule reference). NO orders,
+    execution, balances, positions, payments, or fee computation. Fee math is owned by the fee
+    engine (/v1/fees/preview); only a fee_schedule_ref string is surfaced.
+paths:
+  /v1/instruments:
+    get:
+      operationId: listInstruments
+      summary: Advisory instruments list (descriptive trading parameters, read-only)
+      description: Deterministic list of configured instruments (advisory, sandbox-mock).
+      responses:
+        "200":
+          description: Advisory instrument list (sandbox-mock)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/InstrumentInfo" }
+components:
+  schemas:
+    InstrumentInfo:
+      type: object
+      required: [symbol, tickSize, minQty, maxQty, feeScheduleRef]
+      additionalProperties: false
+      properties:
+        symbol: { type: string }
+        tickSize: { type: string, description: "price granularity (decimal, I-01; trading param, not a balance)" }
+        minQty: { type: string, description: "min order quantity (decimal, I-01)" }
+        maxQty: { type: string, description: "max order quantity (decimal, I-01)" }
+        feeScheduleRef: { type: string, description: "fee-schedule reference (no fee computation here)" }
