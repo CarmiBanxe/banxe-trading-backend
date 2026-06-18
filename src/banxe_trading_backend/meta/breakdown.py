@@ -14,6 +14,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from banxe_trading_backend.assets.catalog import asset_catalog
+from banxe_trading_backend.instruments.params import list_instruments
 from banxe_trading_backend.instruments.xref import list_instrument_asset_xref
 from banxe_trading_backend.models import CamelModel
 
@@ -91,5 +92,44 @@ def markets_breakdown() -> MarketsBreakdown:
         by_base=_to_list(base_counts),
         by_quote=_to_list(quote_counts),
         total=len(markets),
+        source=SANDBOX_MOCK,
+    )
+
+
+
+class InstrumentDimensionCount(CamelModel):
+    """Count of instruments sharing one value of a categorical dimension (integer meta)."""
+
+    key: str
+    count: int
+
+
+class InstrumentsBreakdown(CamelModel):
+    """Read-only instrument breakdown by fee-schedule / tick-size (derived summary; not a SoT)."""
+
+    by_fee_schedule: list[InstrumentDimensionCount]
+    by_tick_size: list[InstrumentDimensionCount]
+    total: int
+    source: str
+
+
+def instruments_breakdown() -> InstrumentsBreakdown:
+    """Count instruments by fee_schedule_ref / tick_size over list_instruments (deterministic)."""
+    from banxe_trading_backend.risk.greeks import SANDBOX_MOCK  # lazy: avoid import cycle
+
+    instruments = list_instruments()
+    fee_counts: dict[str, int] = {}
+    tick_counts: dict[str, int] = {}
+    for inst in instruments:
+        fee_counts[inst.fee_schedule_ref] = fee_counts.get(inst.fee_schedule_ref, 0) + 1
+        tick_counts[inst.tick_size] = tick_counts.get(inst.tick_size, 0) + 1
+
+    def _to_list(counts: dict[str, int]) -> list[InstrumentDimensionCount]:
+        return [InstrumentDimensionCount(key=k, count=counts[k]) for k in sorted(counts)]
+
+    return InstrumentsBreakdown(
+        by_fee_schedule=_to_list(fee_counts),
+        by_tick_size=_to_list(tick_counts),
+        total=len(instruments),
         source=SANDBOX_MOCK,
     )
