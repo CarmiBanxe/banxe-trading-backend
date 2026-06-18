@@ -52,3 +52,20 @@ def list_instrument_asset_xref() -> list[InstrumentAssetXref]:
         except Exception:
             continue  # fail-closed: skip unresolvable entry (no fabricated market)
     return out
+
+
+
+def markets_for_asset(asset: str) -> list[InstrumentAssetXref]:
+    """Reverse projection: markets (instrument<->asset xref) where the asset is base or quote.
+
+    Reuses list_instrument_asset_xref() (the M1.12 bundle) and filters by base/quote asset -- no new
+    DTO, no second catalogue, no /markets/{symbol} duplicate. Deterministic (bundle order).
+    Fail-closed: an unknown asset or an asset with no markets yields an empty list (consistent with
+    the non-404 asset/list API style; never a fabricated market).
+    """
+    key = (asset or "").upper()
+    return [
+        x
+        for x in list_instrument_asset_xref()
+        if key in (x.base_asset.asset, x.quote_asset.asset)
+    ]
