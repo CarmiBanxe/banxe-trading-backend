@@ -331,7 +331,7 @@ def supported_asset_breakdown() -> SupportedAssetBreakdown:
     accounts = account_metadata().accounts
     counts: dict[str, int] = {}
     for acct in accounts:
-        for asset in acct.supported_assets:
+        for asset in set(acct.supported_assets):  # dedupe: account counts once per asset
             counts[asset] = counts.get(asset, 0) + 1
     return SupportedAssetBreakdown(
         by_supported_asset=[SupportedAssetCount(asset=a, count=counts[a]) for a in sorted(counts)],

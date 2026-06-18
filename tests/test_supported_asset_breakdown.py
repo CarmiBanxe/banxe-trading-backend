@@ -32,7 +32,7 @@ def _accts() -> list[AccountAdvisoryMetadata]:
 def _flat_expected() -> Counter[str]:
     c: Counter[str] = Counter()
     for a in _accts():
-        c.update(a.supported_assets)
+        c.update(set(a.supported_assets))  # account counts once per asset
     return c
 
 
@@ -96,3 +96,14 @@ def test_frozen_and_existing_endpoints_unchanged() -> None:
         "/api/v1/catalogue/network-breakdown",
     ):
         assert client.get(p).status_code == 200
+
+
+def test_count_equals_accounts_containing_asset() -> None:
+    # Contract: count == number of ACCOUNTS that support the asset (dedupe per account;
+    # a duplicate entry within one account must not double-count). CodeRabbit #56 finding.
+    sab = supported_asset_breakdown()
+    accts = _accts()
+    for e in sab.by_supported_asset:
+        containing = sum(1 for a in accts if e.asset in set(a.supported_assets))
+        assert e.count == containing
+        assert e.count <= sab.total_accounts
