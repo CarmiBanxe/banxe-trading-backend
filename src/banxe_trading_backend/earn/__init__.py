@@ -20,6 +20,11 @@ from .rates import (
     build_earn_rates_catalog,
     earn_rates,
 )
+from .statement import (
+    EarnStatement,
+    EarnStatementResponse,
+    earn_statement,
+)
 from .status import (
     EarnAdvisoryStatus,
     from_legacy,
@@ -39,4 +44,7 @@ __all__ = [
     "earn_rates",
     "EarnAdvisoryStatus",
     "from_legacy",
+    "EarnStatement",
+    "EarnStatementResponse",
+    "earn_statement",
 ]

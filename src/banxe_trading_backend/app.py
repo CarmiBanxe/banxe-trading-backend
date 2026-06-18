@@ -164,6 +164,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.dse = _build_dse(settings, quote=app.state.quote)
     app.state.risk_greeks = _build_risk_greeks(settings)
     app.state.earn_rates = _build_earn_rates(settings)
+    # M1.6: expose the earn provider for the read-only advisory statement surface.
+    app.state.earn_provider = build_earn_provider(settings.dse_earn_provider)
     app.state.wallet_auth = _build_wallet_auth(settings)
     # T8.2: internal DSE BaaS observability counters (in-process; Prometheus text).
     app.state.baas_metrics = BaasMetrics()

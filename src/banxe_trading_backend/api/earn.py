@@ -17,6 +17,10 @@ from banxe_trading_backend.earn.rates import (
     EarnRatesResponse,
     earn_rates,
 )
+from banxe_trading_backend.earn.statement import (
+    EarnStatementResponse,
+    earn_statement,
+)
 
 router = APIRouter(prefix="/earn", tags=["earn"])
 
@@ -29,6 +33,19 @@ async def get_rates(
     catalog: EarnRatesCatalog = request.app.state.earn_rates
     return await earn_rates(
         catalog,
+        assets=assets or [],
+        now=datetime.now(UTC).isoformat(),
+    )
+
+
+@router.get("/statement", response_model=EarnStatementResponse)
+async def get_statement(
+    request: Request,
+    assets: list[str] | None = Query(None, description="assets to summarise; default basket"),
+) -> EarnStatementResponse:
+    return await earn_statement(
+        request.app.state.earn_rates,
+        request.app.state.earn_provider,
         assets=assets or [],
         now=datetime.now(UTC).isoformat(),
     )
