@@ -29,6 +29,7 @@ from .status import (
     EarnAdvisoryStatus,
     from_legacy,
 )
+from .taxonomy import EarnTaxonomy, earn_taxonomy
 
 __all__ = [
     "EarnRatesProvider",
@@ -43,6 +44,8 @@ __all__ = [
     "build_earn_rates_catalog",
     "earn_rates",
     "EarnAdvisoryStatus",
+    "EarnTaxonomy",
+    "earn_taxonomy",
     "from_legacy",
     "EarnStatement",
     "EarnStatementResponse",

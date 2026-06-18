@@ -21,6 +21,7 @@ from banxe_trading_backend.earn.statement import (
     EarnStatementResponse,
     earn_statement,
 )
+from banxe_trading_backend.earn.taxonomy import EarnTaxonomy, earn_taxonomy
 
 router = APIRouter(prefix="/earn", tags=["earn"])
 
@@ -49,3 +50,10 @@ async def get_statement(
         assets=assets or [],
         now=datetime.now(UTC).isoformat(),
     )
+
+
+@router.get("/taxonomy", response_model=EarnTaxonomy)
+async def get_taxonomy() -> EarnTaxonomy:
+    # M1.15: read-only earn taxonomy reference (risk bands / statuses / lock-up tenors).
+    return earn_taxonomy()
+
