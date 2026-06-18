@@ -19,6 +19,20 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CatalogueMeta" }
+  /v1/catalogue/breakdown:
+    get:
+      operationId: getCatalogueBreakdown
+      summary: Catalogue breakdown (per-asset-class counts, read-only)
+      description: >
+        Read-only per-asset_class breakdown (crypto / stablecoin / fiat) derived from the asset
+        catalogue. Integer meta counts only; NO balances, APY/rates, fees, execution, or payments.
+        Does not modify the flat /v1/catalogue/meta surface.
+      responses:
+        "200":
+          description: Catalogue breakdown (sandbox-mock)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogueBreakdown" }
 components:
   schemas:
     CatalogueMeta:
@@ -31,4 +45,20 @@ components:
         marketsCount: { type: integer }
         assetsCount: { type: integer }
         version: { type: string, description: "package __version__ (single version source)" }
+        source: { type: string, enum: [sandbox-mock] }
+
+    AssetClassCount:
+      type: object
+      required: [assetClass, count]
+      additionalProperties: false
+      properties:
+        assetClass: { type: string, enum: [crypto, stablecoin, fiat] }
+        count: { type: integer, description: "asset count in this class (meta, not a money value)" }
+    CatalogueBreakdown:
+      type: object
+      required: [breakdown, total, source]
+      additionalProperties: false
+      properties:
+        breakdown: { type: array, items: { $ref: "#/components/schemas/AssetClassCount" } }
+        total: { type: integer }
         source: { type: string, enum: [sandbox-mock] }

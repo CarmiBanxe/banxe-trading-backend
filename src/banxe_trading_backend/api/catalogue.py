@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
+from banxe_trading_backend.meta.breakdown import CatalogueBreakdown, catalogue_breakdown
 from banxe_trading_backend.meta.catalogue import CatalogueMeta, catalogue_meta
 from banxe_trading_backend.ports import MarketDataPort
 
@@ -21,3 +22,12 @@ async def get_catalogue_meta(
     market_data: MarketDataPort = Depends(get_market_data),
 ) -> CatalogueMeta:
     return catalogue_meta(market_data)
+
+
+@router.get("/catalogue/breakdown", response_model=CatalogueBreakdown)
+async def get_catalogue_breakdown(
+    market_data: MarketDataPort = Depends(get_market_data),
+) -> CatalogueBreakdown:
+    # M1.16: read-only per-asset-class breakdown (derived; CatalogueMeta untouched).
+    return catalogue_breakdown(market_data)
+
