@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from banxe_trading_backend.accounts.metadata import account_metadata
 from banxe_trading_backend.assets.catalog import asset_catalog
 from banxe_trading_backend.instruments.params import list_instruments
 from banxe_trading_backend.instruments.xref import list_instrument_asset_xref
@@ -176,5 +177,48 @@ def symbols_breakdown(market_data: MarketDataPort) -> SymbolsBreakdown:
         by_price_precision=_to_list(price_prec_counts),
         by_qty_precision=_to_list(qty_prec_counts),
         total=len(symbols),
+        source=SANDBOX_MOCK,
+    )
+
+
+
+class AccountDimensionCount(CamelModel):
+    """Count of advisory accounts sharing one value of a categorical dimension (integer meta)."""
+
+    key: str
+    count: int
+
+
+class AccountsBreakdown(CamelModel):
+    """Read-only account breakdown by type / ledger-nature / status (derived; not a SoT)."""
+
+    by_account_type: list[AccountDimensionCount]
+    by_ledger_nature: list[AccountDimensionCount]
+    by_account_status: list[AccountDimensionCount]
+    total: int
+    source: str
+
+
+def accounts_breakdown() -> AccountsBreakdown:
+    """Count advisory accounts by type/ledger-nature/status (deterministic; no balances)."""
+    from banxe_trading_backend.risk.greeks import SANDBOX_MOCK  # lazy: avoid import cycle
+
+    accounts = account_metadata().accounts
+    type_counts: dict[str, int] = {}
+    nature_counts: dict[str, int] = {}
+    status_counts: dict[str, int] = {}
+    for acct in accounts:
+        type_counts[acct.account_type] = type_counts.get(acct.account_type, 0) + 1
+        nature_counts[acct.ledger_nature] = nature_counts.get(acct.ledger_nature, 0) + 1
+        status_counts[acct.account_status] = status_counts.get(acct.account_status, 0) + 1
+
+    def _to_list(counts: dict[str, int]) -> list[AccountDimensionCount]:
+        return [AccountDimensionCount(key=k, count=counts[k]) for k in sorted(counts)]
+
+    return AccountsBreakdown(
+        by_account_type=_to_list(type_counts),
+        by_ledger_nature=_to_list(nature_counts),
+        by_account_status=_to_list(status_counts),
+        total=len(accounts),
         source=SANDBOX_MOCK,
     )
