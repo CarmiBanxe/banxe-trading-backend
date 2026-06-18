@@ -253,7 +253,7 @@ def network_breakdown(market_data: MarketDataPort) -> NetworkBreakdown:
     assets = asset_catalog(market_data).assets
     counts: dict[str, int] = {}
     for asset in assets:
-        for net in asset.networks:
+        for net in set(asset.networks):  # dedupe: asset counts once per network
             counts[net] = counts.get(net, 0) + 1
     return NetworkBreakdown(
         by_network=[NetworkCount(network=n, count=counts[n]) for n in sorted(counts)],
@@ -292,7 +292,7 @@ def capability_breakdown() -> CapabilityBreakdown:
     accounts = account_metadata().accounts
     counts: dict[str, int] = {}
     for acct in accounts:
-        for cap in acct.capabilities:
+        for cap in set(acct.capabilities):  # dedupe: account counts once per capability
             counts[cap] = counts.get(cap, 0) + 1
     return CapabilityBreakdown(
         by_capability=[CapabilityCount(capability=c, count=counts[c]) for c in sorted(counts)],
