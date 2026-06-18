@@ -4,6 +4,7 @@ from .accounts import router as accounts_router
 from .assets import router as assets_router
 from .auth import router as auth_router
 from .baas_dss import router as baas_dss_router
+from .catalogue import router as catalogue_router
 from .deps import get_exchange, get_market_data, get_quote_provider, get_wallet_auth
 from .dss import get_dse_engine
 from .dss import router as dss_router
@@ -53,4 +54,5 @@ __all__ = [
     "sandbox_partners_router",
     "sandbox_scenarios_router",
     "sandbox_sessions_router",
+    "catalogue_router",
 ]

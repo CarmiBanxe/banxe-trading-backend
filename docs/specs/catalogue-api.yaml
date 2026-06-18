@@ -1,0 +1,34 @@
+openapi: 3.0.3
+info:
+  title: BANXE advisory catalogue meta (M1.14)
+  version: "1.0"
+  description: >
+    Public read-only catalogue meta surface (sandbox-mock). Reports derived integer counts of the
+    advisory catalogues (symbols, instruments, markets, assets) and the package version. Derived
+    from existing list functions; no second registry/counter/version source. NO balances, fees,
+    execution, payments, or infra/secret/ops metrics. Internal observability (/internal/*) is NOT
+    part of this surface and stays infra-fenced.
+paths:
+  /v1/catalogue/meta:
+    get:
+      operationId: getCatalogueMeta
+      summary: Catalogue meta (derived counts + version, read-only)
+      responses:
+        "200":
+          description: Catalogue meta summary (sandbox-mock)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogueMeta" }
+components:
+  schemas:
+    CatalogueMeta:
+      type: object
+      required: [symbolsCount, instrumentsCount, marketsCount, assetsCount, version, source]
+      additionalProperties: false
+      properties:
+        symbolsCount: { type: integer, description: "count of advisory symbols (meta, not a money value)" }
+        instrumentsCount: { type: integer }
+        marketsCount: { type: integer }
+        assetsCount: { type: integer }
+        version: { type: string, description: "package __version__ (single version source)" }
+        source: { type: string, enum: [sandbox-mock] }

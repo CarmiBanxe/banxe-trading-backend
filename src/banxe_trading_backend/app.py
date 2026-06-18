@@ -16,6 +16,7 @@ from banxe_trading_backend.api import (
     assets_router,
     auth_router,
     baas_dss_router,
+    catalogue_router,
     dss_router,
     earn_router,
     execution_router,
@@ -206,6 +207,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(quotes_router, prefix=api)
     app.include_router(rate_router, prefix=api)
     app.include_router(symbols_router, prefix=api)
+    app.include_router(catalogue_router, prefix=api)  # M1.14 public catalogue meta
     app.include_router(orderbook_router)  # /ws/orderbook/{symbol}
     # T8.1: external DSE BaaS sandbox facade at /v1/dss/recommend (NO api prefix).
     # Always registered; gated at request time by BANXE_DSE_BAAS_SANDBOX_ENABLED
