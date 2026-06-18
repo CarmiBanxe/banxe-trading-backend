@@ -41,6 +41,22 @@ paths:
               schema: { $ref: "#/components/schemas/InstrumentAssetXref" }
         "404":
           description: Unknown instrument (fail-closed)
+  /v1/markets:
+    get:
+      operationId: listMarkets
+      summary: Markets advisory bundle (instrument <-> asset cross-reference list, read-only)
+      description: >
+        Read-only list of instrument<->asset cross-references, one per configured instrument
+        (instrument params + base/quote asset metadata). NO balances, fees, execution, payments,
+        or wallet ops. Reuses the InstrumentAssetXref entry; no new DTO/catalogue.
+      responses:
+        "200":
+          description: Markets bundle (sandbox-mock)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/InstrumentAssetXref" }
 components:
   schemas:
     InstrumentInfo:
