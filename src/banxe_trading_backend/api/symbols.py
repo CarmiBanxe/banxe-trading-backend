@@ -14,6 +14,7 @@ from banxe_trading_backend.instruments.params import (
     instrument_info,
     list_instruments,
 )
+from banxe_trading_backend.instruments.xref import InstrumentAssetXref, instrument_asset_xref
 from banxe_trading_backend.models import InstrumentInfo, SymbolInfo
 from banxe_trading_backend.ports import MarketDataPort
 
@@ -41,5 +42,15 @@ async def get_instrument(symbol: str) -> InstrumentInfo:
     # fail-closed 404 for an unknown symbol (no fabricated stub). FeeEnginePort still owns fees.
     try:
         return instrument_info(symbol)
+    except InstrumentParamsError as exc:
+        raise HTTPException(status_code=404, detail=f"unknown instrument: {symbol}") from exc
+
+
+
+@router.get("/instruments/{symbol}/assets", response_model=InstrumentAssetXref)
+async def get_instrument_assets(symbol: str) -> InstrumentAssetXref:
+    # M1.11: read-only composition of the instrument + its base/quote asset metadata.
+    try:
+        return instrument_asset_xref(symbol)
     except InstrumentParamsError as exc:
         raise HTTPException(status_code=404, detail=f"unknown instrument: {symbol}") from exc
