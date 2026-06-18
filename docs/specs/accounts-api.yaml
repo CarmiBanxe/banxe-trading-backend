@@ -1,0 +1,46 @@
+openapi: 3.0.3
+info:
+  title: BANXE accounts advisory metadata (M1.7)
+  version: "1.0"
+  description: >
+    Read-only advisory account metadata (sandbox-mock, config-as-data). Descriptive account
+    types / ledger nature / status / supported assets / capabilities only. NO balances,
+    postings, transfers, or live ledger operations. Canonical account/ledger source-of-truth
+    is the Midaz LedgerPort (ADR-013); this surface only describes it.
+paths:
+  /v1/accounts/metadata:
+    get:
+      operationId: getAccountMetadata
+      summary: Advisory account metadata (descriptive, read-only)
+      description: >
+        Descriptive account types and capabilities. NO balances / postings / transfers /
+        live ledger operations (self-custodial, sandbox-mock).
+      responses:
+        "200":
+          description: Advisory account metadata (sandbox-mock)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountMetadataResponse" }
+components:
+  schemas:
+    AccountAdvisoryMetadata:
+      type: object
+      required: [accountType, ledgerNature, accountStatus, supportedAssets, capabilities, source]
+      additionalProperties: false
+      properties:
+        accountType: { type: string, enum: [INTERNAL, EXTERNAL, SYSTEM] }
+        ledgerNature: { type: string, enum: [ACTIVE, PASSIVE] }
+        accountStatus: { type: string, enum: [ACTIVE, CLOSED, CLOSING] }
+        supportedAssets: { type: array, items: { type: string } }
+        capabilities: { type: array, items: { type: string } }
+        source: { type: string, enum: [sandbox-mock] }
+    AccountMetadataResponse:
+      type: object
+      required: [accounts, source, disclaimer]
+      additionalProperties: false
+      properties:
+        accounts:
+          type: array
+          items: { $ref: "#/components/schemas/AccountAdvisoryMetadata" }
+        source: { type: string, enum: [sandbox-mock] }
+        disclaimer: { type: string }
