@@ -8,7 +8,12 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from banxe_trading_backend.meta.breakdown import CatalogueBreakdown, catalogue_breakdown
+from banxe_trading_backend.meta.breakdown import (
+    CatalogueBreakdown,
+    InstrumentsBreakdown,
+    catalogue_breakdown,
+    instruments_breakdown,
+)
 from banxe_trading_backend.meta.catalogue import CatalogueMeta, catalogue_meta
 from banxe_trading_backend.ports import MarketDataPort
 
@@ -30,4 +35,10 @@ async def get_catalogue_breakdown(
 ) -> CatalogueBreakdown:
     # M1.16: read-only per-asset-class breakdown (derived; CatalogueMeta untouched).
     return catalogue_breakdown(market_data)
+
+
+@router.get("/catalogue/instruments-breakdown", response_model=InstrumentsBreakdown)
+async def get_instruments_breakdown() -> InstrumentsBreakdown:
+    # M1.18: read-only instrument breakdown by fee-schedule/tick-size (derived; distinct path).
+    return instruments_breakdown()
 

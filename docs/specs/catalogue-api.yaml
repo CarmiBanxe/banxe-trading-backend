@@ -33,6 +33,20 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CatalogueBreakdown" }
+  /v1/catalogue/instruments-breakdown:
+    get:
+      operationId: getInstrumentsBreakdown
+      summary: Instruments breakdown (by fee-schedule / tick-size, read-only)
+      description: >
+        Read-only instrument counts grouped by fee_schedule_ref and tick_size, derived from the
+        instrument catalogue. Integer meta counts only; NO balances, APY/rates, fees, execution,
+        or payments. fee_schedule_ref is treated as an opaque string label (no fee computation).
+      responses:
+        "200":
+          description: Instruments breakdown (sandbox-mock)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstrumentsBreakdown" }
 components:
   schemas:
     CatalogueMeta:
@@ -65,4 +79,25 @@ components:
       properties:
         breakdown: { type: array, items: { $ref: "#/components/schemas/AssetClassCount" } }
         total: { type: integer }
+        source: { type: string, enum: [sandbox-mock] }
+
+    InstrumentDimensionCount:
+      type: object
+      required: [key, count]
+      additionalProperties: false
+      properties:
+        key:
+          type: string
+          description: >
+            categorical instrument-dimension value; e.g. a fee_schedule_ref like "spot-default" or a
+            tick_size like "0.01" — non-exhaustive, matches runtime (grows with the catalogue).
+        count: { type: integer, description: "instrument count for this key (meta, not a money value)" }
+    InstrumentsBreakdown:
+      type: object
+      required: [byFeeSchedule, byTickSize, total, source]
+      additionalProperties: false
+      properties:
+        byFeeSchedule: { type: array, items: { $ref: "#/components/schemas/InstrumentDimensionCount" } }
+        byTickSize: { type: array, items: { $ref: "#/components/schemas/InstrumentDimensionCount" } }
+        total: { type: integer, description: "number of instruments" }
         source: { type: string, enum: [sandbox-mock] }
