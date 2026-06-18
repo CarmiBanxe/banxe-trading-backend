@@ -133,3 +133,48 @@ def instruments_breakdown() -> InstrumentsBreakdown:
         total=len(instruments),
         source=SANDBOX_MOCK,
     )
+
+
+
+class SymbolDimensionCount(CamelModel):
+    """Count of symbols sharing one value of a categorical symbol dimension (integer meta)."""
+
+    key: str
+    count: int
+
+
+class SymbolsBreakdown(CamelModel):
+    """Read-only symbol breakdown by status / precision (derived summary; not a SoT)."""
+
+    by_status: list[SymbolDimensionCount]
+    by_price_precision: list[SymbolDimensionCount]
+    by_qty_precision: list[SymbolDimensionCount]
+    total: int
+    source: str
+
+
+def symbols_breakdown(market_data: MarketDataPort) -> SymbolsBreakdown:
+    """Count symbols by status / precision over list_symbols (deterministic; precision=str)."""
+    from banxe_trading_backend.risk.greeks import SANDBOX_MOCK  # lazy: avoid import cycle
+
+    symbols = market_data.list_symbols()
+    status_counts: dict[str, int] = {}
+    price_prec_counts: dict[str, int] = {}
+    qty_prec_counts: dict[str, int] = {}
+    for sym in symbols:
+        status_counts[sym.status] = status_counts.get(sym.status, 0) + 1
+        pp = str(sym.price_precision)
+        qp = str(sym.qty_precision)
+        price_prec_counts[pp] = price_prec_counts.get(pp, 0) + 1
+        qty_prec_counts[qp] = qty_prec_counts.get(qp, 0) + 1
+
+    def _to_list(counts: dict[str, int]) -> list[SymbolDimensionCount]:
+        return [SymbolDimensionCount(key=k, count=counts[k]) for k in sorted(counts)]
+
+    return SymbolsBreakdown(
+        by_status=_to_list(status_counts),
+        by_price_precision=_to_list(price_prec_counts),
+        by_qty_precision=_to_list(qty_prec_counts),
+        total=len(symbols),
+        source=SANDBOX_MOCK,
+    )
