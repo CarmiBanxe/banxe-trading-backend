@@ -97,3 +97,28 @@ def test_frozen_and_existing_endpoints_unchanged() -> None:
         "/api/v1/catalogue/accounts-breakdown", "/api/v1/catalogue/network-breakdown",
     ):
         assert client.get(p).status_code == 200
+
+
+def test_count_equals_accounts_containing_capability() -> None:
+    # Contract: count == number of ACCOUNTS that list the capability (dedupe per account).
+    cb = capability_breakdown()
+    accts = _accts()
+    for e in cb.by_capability:
+        containing = sum(1 for a in accts if e.capability in set(a.capabilities))
+        assert e.count == containing
+        assert e.count <= cb.total_accounts
+
+
+def test_duplicate_capability_not_double_counted(monkeypatch) -> None:
+    # Synthetic account listing a duplicate capability must count once (dedup-per-entity).
+    from types import SimpleNamespace
+
+    import banxe_trading_backend.meta.breakdown as bd
+
+    fake = SimpleNamespace(accounts=[SimpleNamespace(capabilities=["dup", "dup", "solo"])])
+    monkeypatch.setattr(bd, "account_metadata", lambda: fake)
+    cb = bd.capability_breakdown()
+    counts = {e.capability: e.count for e in cb.by_capability}
+    assert counts == {"dup": 1, "solo": 1}  # dup NOT counted twice
+    assert cb.total_accounts == 1
+    assert cb.total_memberships == 2

@@ -93,3 +93,28 @@ def test_frozen_and_existing_endpoints_unchanged() -> None:
         "/api/v1/catalogue/accounts-breakdown",
     ):
         assert client.get(p).status_code == 200
+
+
+def test_count_equals_assets_containing_network() -> None:
+    # Contract: count == #ASSETS listing the network (dedupe per asset); M1.21/M1.23 align.
+    nb = network_breakdown(_md())
+    assets = _assets()
+    for e in nb.by_network:
+        containing = sum(1 for a in assets if e.network in set(a.networks))
+        assert e.count == containing
+        assert e.count <= nb.total_assets
+
+
+def test_duplicate_network_not_double_counted(monkeypatch) -> None:
+    # Synthetic asset listing a duplicate network must count once (dedup-per-entity).
+    from types import SimpleNamespace
+
+    import banxe_trading_backend.meta.breakdown as bd
+
+    fake = SimpleNamespace(assets=[SimpleNamespace(networks=["dup", "dup", "solo"])])
+    monkeypatch.setattr(bd, "asset_catalog", lambda _md: fake)
+    nb = bd.network_breakdown(_md())
+    counts = {e.network: e.count for e in nb.by_network}
+    assert counts == {"dup": 1, "solo": 1}  # dup NOT counted twice
+    assert nb.total_assets == 1
+    assert nb.total_memberships == 2
