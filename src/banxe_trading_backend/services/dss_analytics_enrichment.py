@@ -27,6 +27,7 @@ from banxe_trading_backend.dse.models import (
     RecommendRequest,
 )
 from banxe_trading_backend.earn.rates import DEFAULT_BASKET, EarnRatesCatalog
+from banxe_trading_backend.earn.status import EarnAdvisoryStatus
 from banxe_trading_backend.risk.greeks import SANDBOX_MOCK, RiskGreeksProvider
 
 #: Traceability marker for the enrichment composition.
@@ -65,6 +66,21 @@ def _directional_exposure(delta: Decimal) -> str:
     if abs_delta >= _ELEVATED_DELTA:
         return "elevated"
     return "low"
+
+
+def _advisory_status(card: object) -> str | None:
+    """Advisory earn lifecycle status for an alternative.
+
+    Single source-of-truth: EarnAdvisoryStatus (no duplicated status strings). Mock-safe /
+    fail-closed: a well-formed alternative surfaces NORMAL (legacy product operating-normally
+    advisory state); returns None (never a fake value) when the card lacks the fields to
+    assert a status. Advisory only — not a position, balance, or execution signal.
+    """
+    asset = getattr(card, "asset", None)
+    apy = getattr(card, "apy_pct", None)
+    if not asset or apy is None:
+        return None
+    return EarnAdvisoryStatus.NORMAL.value
 
 
 class DseAnalyticsEnrichmentService:
@@ -131,6 +147,7 @@ class DseAnalyticsEnrichmentService:
                 lockup_days=c.lockup_days,
                 risk_band=c.risk_band.value,
                 source=c.source,
+                advisory_status=_advisory_status(c),
             )
             for c in ordered
         ]

@@ -136,6 +136,8 @@ class EarnAlternative(CamelModel):
     lockup_days: int
     risk_band: str
     source: str
+    # M1.5 additive: advisory lifecycle (EarnAdvisoryStatus SoT); None if not determinable
+    advisory_status: str | None = None
 
 
 class GreeksSummary(CamelModel):
