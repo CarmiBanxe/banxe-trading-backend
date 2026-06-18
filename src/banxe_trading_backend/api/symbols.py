@@ -9,7 +9,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from banxe_trading_backend.instruments.params import InstrumentParamsError, instrument_info
+from banxe_trading_backend.instruments.params import (
+    InstrumentParamsError,
+    instrument_info,
+    list_instruments,
+)
 from banxe_trading_backend.models import InstrumentInfo, SymbolInfo
 from banxe_trading_backend.ports import MarketDataPort
 
@@ -23,6 +27,12 @@ async def list_symbols(
     market_data: MarketDataPort = Depends(get_market_data),
 ) -> list[SymbolInfo]:
     return market_data.list_symbols()
+
+
+@router.get("/instruments", response_model=list[InstrumentInfo])
+async def list_all_instruments() -> list[InstrumentInfo]:
+    # M1.10: advisory list of the M1.9 instrument catalogue (single source: instruments.params).
+    return list_instruments()
 
 
 @router.get("/instruments/{symbol}", response_model=InstrumentInfo)
