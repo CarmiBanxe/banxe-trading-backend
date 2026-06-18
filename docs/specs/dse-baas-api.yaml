@@ -256,6 +256,7 @@ components:
         lockupDays: { type: integer }
         riskBand: { type: string, enum: [low, medium, high] }
         source: { type: string, enum: [sandbox-mock] }
+        advisoryStatus: { type: string, nullable: true, enum: [CREATED, INVESTING, DEPOSITING, WITHDRAWING, NORMAL, CLOSED, FAILED, NONE, PROCESSING, COMPLETED, ERROR], description: "advisory earn lifecycle (EarnAdvisoryStatus); optional/additive, M1.5" }
     GreeksSummary:
       type: object
       required: [greeks, notionalUsd, side, directionalExposure, notes, source]
