@@ -47,6 +47,20 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/InstrumentsBreakdown" }
+  /v1/catalogue/symbols-breakdown:
+    get:
+      operationId: getSymbolsBreakdown
+      summary: Symbols breakdown (by status / precision, read-only)
+      description: >
+        Read-only symbol counts grouped by status, price_precision and qty_precision, derived from
+        the symbol universe. Integer meta counts only; NO balances, APY/rates, fees, execution, or
+        payments. base/quote breakdown is owned by the markets breakdown, not duplicated here.
+      responses:
+        "200":
+          description: Symbols breakdown (sandbox-mock)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SymbolsBreakdown" }
 components:
   schemas:
     CatalogueMeta:
@@ -100,4 +114,26 @@ components:
         byFeeSchedule: { type: array, items: { $ref: "#/components/schemas/InstrumentDimensionCount" } }
         byTickSize: { type: array, items: { $ref: "#/components/schemas/InstrumentDimensionCount" } }
         total: { type: integer, description: "number of instruments" }
+        source: { type: string, enum: [sandbox-mock] }
+
+    SymbolDimensionCount:
+      type: object
+      required: [key, count]
+      additionalProperties: false
+      properties:
+        key:
+          type: string
+          description: >
+            categorical symbol-dimension value; e.g. a status like "trading" or a stringified
+            precision like "2" / "4" — non-exhaustive, matches runtime (grows with the universe).
+        count: { type: integer, description: "symbol count for this key (meta, not a money value)" }
+    SymbolsBreakdown:
+      type: object
+      required: [byStatus, byPricePrecision, byQtyPrecision, total, source]
+      additionalProperties: false
+      properties:
+        byStatus: { type: array, items: { $ref: "#/components/schemas/SymbolDimensionCount" } }
+        byPricePrecision: { type: array, items: { $ref: "#/components/schemas/SymbolDimensionCount" } }
+        byQtyPrecision: { type: array, items: { $ref: "#/components/schemas/SymbolDimensionCount" } }
+        total: { type: integer, description: "number of symbols" }
         source: { type: string, enum: [sandbox-mock] }
