@@ -52,7 +52,11 @@ components:
       required: [assetClass, count]
       additionalProperties: false
       properties:
-        assetClass: { type: string, enum: [crypto, stablecoin, fiat] }
+        assetClass:
+          type: string
+          description: >
+            asset class label; canonical values are crypto / stablecoin / fiat, but the breakdown
+            returns any class present in the catalogue (non-exhaustive, matches runtime).
         count: { type: integer, description: "asset count in this class (meta, not a money value)" }
     CatalogueBreakdown:
       type: object
