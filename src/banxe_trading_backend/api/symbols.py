@@ -19,6 +19,7 @@ from banxe_trading_backend.instruments.xref import (
     instrument_asset_xref,
     list_instrument_asset_xref,
 )
+from banxe_trading_backend.meta.breakdown import MarketsBreakdown, markets_breakdown
 from banxe_trading_backend.models import InstrumentInfo, SymbolInfo
 from banxe_trading_backend.ports import MarketDataPort
 
@@ -65,3 +66,9 @@ async def get_instrument_assets(symbol: str) -> InstrumentAssetXref:
 async def list_markets() -> list[InstrumentAssetXref]:
     # M1.12: read-only markets bundle = list of instrument<->asset cross-references.
     return list_instrument_asset_xref()
+
+
+@router.get("/markets/breakdown", response_model=MarketsBreakdown)
+async def get_markets_breakdown() -> MarketsBreakdown:
+    # M1.17: read-only per-base/per-quote market counts (derived; xref bundle untouched).
+    return markets_breakdown()
