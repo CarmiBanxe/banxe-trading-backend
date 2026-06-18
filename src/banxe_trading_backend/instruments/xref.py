@@ -12,7 +12,7 @@ fail-closed: an unknown symbol propagates ``InstrumentParamsError`` (mapped to 4
 from __future__ import annotations
 
 from banxe_trading_backend.assets.catalog import CryptoAssetMetadata, asset_metadata
-from banxe_trading_backend.instruments.params import instrument_info
+from banxe_trading_backend.instruments.params import instrument_info, list_instruments
 from banxe_trading_backend.models import CamelModel, InstrumentInfo, split_symbol
 
 
@@ -35,3 +35,20 @@ def instrument_asset_xref(symbol: str) -> InstrumentAssetXref:
         base_asset=asset_metadata(base),
         quote_asset=asset_metadata(quote),
     )
+
+
+
+def list_instrument_asset_xref() -> list[InstrumentAssetXref]:
+    """Deterministic markets bundle: the cross-reference for every configured instrument.
+
+    Reuses list_instruments() (sorted _INSTRUMENT_PARAMS) + instrument_asset_xref -- no new DTO,
+    no second market catalogue. Fail-closed: a malformed/unresolvable entry is skipped (never a
+    fabricated market).
+    """
+    out: list[InstrumentAssetXref] = []
+    for instrument in list_instruments():
+        try:
+            out.append(instrument_asset_xref(instrument.symbol))
+        except Exception:
+            continue  # fail-closed: skip unresolvable entry (no fabricated market)
+    return out

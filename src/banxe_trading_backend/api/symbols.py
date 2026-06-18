@@ -14,7 +14,11 @@ from banxe_trading_backend.instruments.params import (
     instrument_info,
     list_instruments,
 )
-from banxe_trading_backend.instruments.xref import InstrumentAssetXref, instrument_asset_xref
+from banxe_trading_backend.instruments.xref import (
+    InstrumentAssetXref,
+    instrument_asset_xref,
+    list_instrument_asset_xref,
+)
 from banxe_trading_backend.models import InstrumentInfo, SymbolInfo
 from banxe_trading_backend.ports import MarketDataPort
 
@@ -54,3 +58,10 @@ async def get_instrument_assets(symbol: str) -> InstrumentAssetXref:
         return instrument_asset_xref(symbol)
     except InstrumentParamsError as exc:
         raise HTTPException(status_code=404, detail=f"unknown instrument: {symbol}") from exc
+
+
+
+@router.get("/markets", response_model=list[InstrumentAssetXref])
+async def list_markets() -> list[InstrumentAssetXref]:
+    # M1.12: read-only markets bundle = list of instrument<->asset cross-references.
+    return list_instrument_asset_xref()
