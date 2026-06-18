@@ -86,6 +86,20 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/EarnStatementResponse" }
+  /v1/earn/taxonomy:
+    get:
+      operationId: getEarnTaxonomy
+      summary: Earn taxonomy reference (risk bands / statuses / lock-up tenors, read-only)
+      description: >
+        Read-only descriptive reference over the earn controlled vocabularies (RiskBand,
+        EarnAdvisoryStatus) plus config-as-data lock-up tenor buckets. Descriptor view only; NO
+        APY/yield re-derivation, NO balances, fees, execution, or live-pipeline transaction states.
+      responses:
+        "200":
+          description: Earn taxonomy reference (sandbox-mock)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EarnTaxonomy" }
 components:
   schemas:
     RateCard:
@@ -147,3 +161,39 @@ components:
         source: { type: string, enum: [sandbox-mock] }
         asOf: { type: string, description: "ISO-8601 timestamp" }
         disclaimer: { type: string }
+
+    RiskBandDescriptor:
+      type: object
+      required: [code, label, ordering, note]
+      additionalProperties: false
+      properties:
+        code: { type: string, enum: [low, medium, high] }
+        label: { type: string }
+        ordering: { type: integer, description: "relative ordering (meta, not a money value)" }
+        note: { type: string }
+    AdvisoryStatusDescriptor:
+      type: object
+      required: [code, label, phase]
+      additionalProperties: false
+      properties:
+        code: { type: string }
+        label: { type: string }
+        phase: { type: string, enum: [active, terminal, inactive, error] }
+    LockupTenorDescriptor:
+      type: object
+      required: [code, label, minDays, maxDays]
+      additionalProperties: false
+      properties:
+        code: { type: string }
+        label: { type: string }
+        minDays: { type: integer, description: "lower day bound (meta config, not an amount)" }
+        maxDays: { type: integer, nullable: true }
+    EarnTaxonomy:
+      type: object
+      required: [riskBands, advisoryStatuses, lockupTenors, source]
+      additionalProperties: false
+      properties:
+        riskBands: { type: array, items: { $ref: "#/components/schemas/RiskBandDescriptor" } }
+        advisoryStatuses: { type: array, items: { $ref: "#/components/schemas/AdvisoryStatusDescriptor" } }
+        lockupTenors: { type: array, items: { $ref: "#/components/schemas/LockupTenorDescriptor" } }
+        source: { type: string, enum: [sandbox-mock] }
