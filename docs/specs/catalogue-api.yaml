@@ -107,6 +107,23 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CapabilityBreakdown" }
+  /v1/catalogue/supported-asset-breakdown:
+    get:
+      operationId: getSupportedAssetBreakdown
+      summary: Supported-asset breakdown (per-asset account counts, flatten, read-only)
+      description: >
+        Read-only per-supported-asset account counts, derived by flattening each advisory account's
+        supported_assets list. Accounts-per-asset (account-domain), NOT a second asset catalogue.
+        Flatten semantics: an account with N supported assets contributes to N buckets; an account
+        with an empty list contributes to none, so total_memberships (sum of by_supported_asset
+        counts) need NOT equal total_accounts. Integer meta counts only; supported_assets is a
+        support label, NOT a held amount; NO balances, postings, APY, fees, or payments.
+      responses:
+        "200":
+          description: Supported-asset breakdown (sandbox-mock)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupportedAssetBreakdown" }
 components:
   schemas:
     CatalogueMeta:
@@ -254,4 +271,29 @@ components:
           description: >
             sum of by_capability counts (capability memberships); need NOT equal totalAccounts because
             multi-capability accounts count once per capability and empty-capability accounts count in none.
+        source: { type: string, enum: [sandbox-mock] }
+
+    SupportedAssetCount:
+      type: object
+      required: [asset, count]
+      additionalProperties: false
+      properties:
+        asset:
+          type: string
+          description: >
+            supported asset symbol; canonical examples EUR / BTC, but any catalogued asset may
+            appear -- non-exhaustive, matches runtime (a support label, not a held amount).
+        count: { type: integer, description: "account count supporting this asset (meta, not a money value)" }
+    SupportedAssetBreakdown:
+      type: object
+      required: [bySupportedAsset, totalAccounts, totalMemberships, source]
+      additionalProperties: false
+      properties:
+        bySupportedAsset: { type: array, items: { $ref: "#/components/schemas/SupportedAssetCount" } }
+        totalAccounts: { type: integer, description: "account count (denominator; not sum of counts)" }
+        totalMemberships:
+          type: integer
+          description: >
+            sum of by_supported_asset counts (account-asset support memberships); need NOT equal
+            totalAccounts because multi-asset accounts count once per asset and empty accounts count in none.
         source: { type: string, enum: [sandbox-mock] }

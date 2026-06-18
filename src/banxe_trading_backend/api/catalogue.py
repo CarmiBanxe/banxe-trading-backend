@@ -14,12 +14,14 @@ from banxe_trading_backend.meta.breakdown import (
     CatalogueBreakdown,
     InstrumentsBreakdown,
     NetworkBreakdown,
+    SupportedAssetBreakdown,
     SymbolsBreakdown,
     accounts_breakdown,
     capability_breakdown,
     catalogue_breakdown,
     instruments_breakdown,
     network_breakdown,
+    supported_asset_breakdown,
     symbols_breakdown,
 )
 from banxe_trading_backend.meta.catalogue import CatalogueMeta, catalogue_meta
@@ -77,4 +79,10 @@ async def get_network_breakdown(
 async def get_capability_breakdown() -> CapabilityBreakdown:
     # M1.22: read-only per-capability account breakdown (flatten of account capabilities; derived).
     return capability_breakdown()
+
+
+@router.get("/catalogue/supported-asset-breakdown", response_model=SupportedAssetBreakdown)
+async def get_supported_asset_breakdown() -> SupportedAssetBreakdown:
+    # M1.23: read-only per-supported-asset account breakdown (flatten; accounts-per-asset, derived).
+    return supported_asset_breakdown()
 

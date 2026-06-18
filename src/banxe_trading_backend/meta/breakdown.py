@@ -300,3 +300,42 @@ def capability_breakdown() -> CapabilityBreakdown:
         total_memberships=sum(counts.values()),
         source=SANDBOX_MOCK,
     )
+
+
+
+class SupportedAssetCount(CamelModel):
+    """Count of advisory accounts that list one supported asset (integer meta; not a balance)."""
+
+    asset: str
+    count: int
+
+
+class SupportedAssetBreakdown(CamelModel):
+    """Read-only per-supported-asset account breakdown (flatten of account supported_assets).
+
+    Accounts-per-asset (account-domain), NOT a second asset catalogue. Flatten semantics: an account
+    listing N supported assets contributes to N buckets; an account with an empty supported_assets
+    list contributes to none. total_memberships (= sum) need NOT equal total_accounts.
+    """
+
+    by_supported_asset: list[SupportedAssetCount]
+    total_accounts: int
+    total_memberships: int
+    source: str
+
+
+def supported_asset_breakdown() -> SupportedAssetBreakdown:
+    """Flatten account supported_assets into per-asset account counts (deterministic; empty)."""
+    from banxe_trading_backend.risk.greeks import SANDBOX_MOCK  # lazy: avoid import cycle
+
+    accounts = account_metadata().accounts
+    counts: dict[str, int] = {}
+    for acct in accounts:
+        for asset in set(acct.supported_assets):  # dedupe: account counts once per asset
+            counts[asset] = counts.get(asset, 0) + 1
+    return SupportedAssetBreakdown(
+        by_supported_asset=[SupportedAssetCount(asset=a, count=counts[a]) for a in sorted(counts)],
+        total_accounts=len(accounts),
+        total_memberships=sum(counts.values()),
+        source=SANDBOX_MOCK,
+    )
