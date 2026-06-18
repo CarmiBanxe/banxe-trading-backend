@@ -10,11 +10,13 @@ from fastapi import APIRouter, Depends
 
 from banxe_trading_backend.meta.breakdown import (
     AccountsBreakdown,
+    CapabilityBreakdown,
     CatalogueBreakdown,
     InstrumentsBreakdown,
     NetworkBreakdown,
     SymbolsBreakdown,
     accounts_breakdown,
+    capability_breakdown,
     catalogue_breakdown,
     instruments_breakdown,
     network_breakdown,
@@ -69,4 +71,10 @@ async def get_network_breakdown(
 ) -> NetworkBreakdown:
     # M1.21: read-only per-network asset breakdown (flatten of asset networks; derived).
     return network_breakdown(market_data)
+
+
+@router.get("/catalogue/capability-breakdown", response_model=CapabilityBreakdown)
+async def get_capability_breakdown() -> CapabilityBreakdown:
+    # M1.22: read-only per-capability account breakdown (flatten of account capabilities; derived).
+    return capability_breakdown()
 
