@@ -1,6 +1,7 @@
 """REST API layer — routers over the ports (ADR-021 §D3, ADR-083, ADR-084)."""
 
 from .accounts import router as accounts_router
+from .assets import router as assets_router
 from .auth import router as auth_router
 from .baas_dss import router as baas_dss_router
 from .deps import get_exchange, get_market_data, get_quote_provider, get_wallet_auth
@@ -38,6 +39,7 @@ __all__ = [
     "dss_router",
     "risk_router",
     "accounts_router",
+    "assets_router",
     "earn_router",
     "baas_dss_router",
     "internal_router",

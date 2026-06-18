@@ -1,0 +1,47 @@
+openapi: 3.0.3
+info:
+  title: BANXE crypto asset advisory catalogue metadata (M1.8)
+  version: "1.0"
+  description: >
+    Read-only advisory crypto asset catalogue (sandbox-mock, config-as-data). Descriptive
+    per-asset metadata (name / asset class / networks / display decimals); asset universe is
+    reused from the trading symbol catalogue. NO balances, transactions, wallet operations,
+    deposits, withdrawals, transfers, or payments. Canonical symbol/instrument source-of-truth
+    is SymbolInfo / InstrumentInfo / MarketDataPort; this surface only describes assets.
+paths:
+  /v1/assets/metadata:
+    get:
+      operationId: getAssetMetadata
+      summary: Advisory crypto asset catalogue (descriptive, read-only)
+      description: >
+        Descriptive per-asset metadata. NO balances / transactions / wallet operations
+        (self-custodial, sandbox-mock).
+      responses:
+        "200":
+          description: Advisory asset catalogue (sandbox-mock)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssetCatalogResponse" }
+components:
+  schemas:
+    CryptoAssetMetadata:
+      type: object
+      required: [asset, name, assetClass, networks, displayDecimals, source]
+      additionalProperties: false
+      properties:
+        asset: { type: string }
+        name: { type: string }
+        assetClass: { type: string, enum: [crypto, stablecoin, fiat] }
+        networks: { type: array, items: { type: string } }
+        displayDecimals: { type: integer, description: "display precision (not a money value)" }
+        source: { type: string, enum: [sandbox-mock] }
+    AssetCatalogResponse:
+      type: object
+      required: [assets, source, disclaimer]
+      additionalProperties: false
+      properties:
+        assets:
+          type: array
+          items: { $ref: "#/components/schemas/CryptoAssetMetadata" }
+        source: { type: string, enum: [sandbox-mock] }
+        disclaimer: { type: string }
