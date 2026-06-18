@@ -62,6 +62,30 @@ paths:
                 source: "sandbox-mock"
                 asOf: "2026-06-14T00:00:00+00:00"
                 disclaimer: "Advisory analytics only — sandbox mock yields ..."
+  /v1/earn/statement:
+    get:
+      operationId: getEarnStatement
+      summary: Earn advisory read-only statement/summary (composed, read-only)
+      description: >
+        Read-only advisory per-asset earn statement composing mock rates, fee/product
+        detail, and advisory lifecycle status. NO stake/unstake, NO live balances,
+        positions, execution, or payments (self-custodial, sandbox-mock).
+      parameters:
+        - in: query
+          name: assets
+          required: false
+          style: form
+          explode: true
+          schema:
+            type: array
+            items: { type: string }
+          description: assets to summarise; omitted -> default basket
+      responses:
+        "200":
+          description: Advisory earn statements (sandbox-mock)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EarnStatementResponse" }
 components:
   schemas:
     RateCard:
@@ -94,3 +118,32 @@ components:
           enum: [sandbox-mock]
         asOf: { type: string, description: "ISO-8601 timestamp" }
         disclaimer: { type: string, description: "MiCA/MiFID advisory disclosure" }
+    EarnStatement:
+      type: object
+      required: [asset, protocol, currentYieldPct, lockupDays, variableRate, riskBand, feeSummary, advisoryStatus, source]
+      additionalProperties: false
+      properties:
+        asset: { type: string }
+        protocol: { type: string }
+        currentYieldPct: { type: string, description: "current advisory yield (decimal, I-01)" }
+        lockupDays: { type: integer }
+        variableRate: { type: boolean }
+        riskBand: { type: string, enum: [low, medium, high] }
+        feeSummary: { type: string, description: "advisory fee/product detail (from EarnMetrics.riskSummary)" }
+        advisoryStatus:
+          type: string
+          nullable: true
+          enum: [CREATED, INVESTING, DEPOSITING, WITHDRAWING, NORMAL, CLOSED, FAILED, NONE, PROCESSING, COMPLETED, ERROR]
+          description: "advisory earn lifecycle (EarnAdvisoryStatus); null if not determinable"
+        source: { type: string, enum: [sandbox-mock] }
+    EarnStatementResponse:
+      type: object
+      required: [statements, source, asOf, disclaimer]
+      additionalProperties: false
+      properties:
+        statements:
+          type: array
+          items: { $ref: "#/components/schemas/EarnStatement" }
+        source: { type: string, enum: [sandbox-mock] }
+        asOf: { type: string, description: "ISO-8601 timestamp" }
+        disclaimer: { type: string }
