@@ -12,10 +12,12 @@ from banxe_trading_backend.meta.breakdown import (
     AccountsBreakdown,
     CatalogueBreakdown,
     InstrumentsBreakdown,
+    NetworkBreakdown,
     SymbolsBreakdown,
     accounts_breakdown,
     catalogue_breakdown,
     instruments_breakdown,
+    network_breakdown,
     symbols_breakdown,
 )
 from banxe_trading_backend.meta.catalogue import CatalogueMeta, catalogue_meta
@@ -59,4 +61,12 @@ async def get_symbols_breakdown(
 async def get_accounts_breakdown() -> AccountsBreakdown:
     # M1.20: read-only account breakdown by type/ledger-nature/status (derived; no balances).
     return accounts_breakdown()
+
+
+@router.get("/catalogue/network-breakdown", response_model=NetworkBreakdown)
+async def get_network_breakdown(
+    market_data: MarketDataPort = Depends(get_market_data),
+) -> NetworkBreakdown:
+    # M1.21: read-only per-network asset breakdown (flatten of asset networks; derived).
+    return network_breakdown(market_data)
 

@@ -222,3 +222,42 @@ def accounts_breakdown() -> AccountsBreakdown:
         total=len(accounts),
         source=SANDBOX_MOCK,
     )
+
+
+
+class NetworkCount(CamelModel):
+    """Count of catalogued assets that list one blockchain network (integer meta)."""
+
+    network: str
+    count: int
+
+
+class NetworkBreakdown(CamelModel):
+    """Read-only per-network asset breakdown (flatten of asset networks; derived, not a SoT).
+
+    Flatten semantics: an asset listing N networks contributes to N buckets; an asset with an empty
+    networks list contributes to none. Therefore total_memberships (= sum of by_network counts)
+    need NOT equal total_assets (the catalogue size).
+    """
+
+    by_network: list[NetworkCount]
+    total_assets: int
+    total_memberships: int
+    source: str
+
+
+def network_breakdown(market_data: MarketDataPort) -> NetworkBreakdown:
+    """Flatten asset networks into per-network counts (deterministic; empty -> no bucket)."""
+    from banxe_trading_backend.risk.greeks import SANDBOX_MOCK  # lazy: avoid import cycle
+
+    assets = asset_catalog(market_data).assets
+    counts: dict[str, int] = {}
+    for asset in assets:
+        for net in asset.networks:
+            counts[net] = counts.get(net, 0) + 1
+    return NetworkBreakdown(
+        by_network=[NetworkCount(network=n, count=counts[n]) for n in sorted(counts)],
+        total_assets=len(assets),
+        total_memberships=sum(counts.values()),
+        source=SANDBOX_MOCK,
+    )
