@@ -261,3 +261,42 @@ def network_breakdown(market_data: MarketDataPort) -> NetworkBreakdown:
         total_memberships=sum(counts.values()),
         source=SANDBOX_MOCK,
     )
+
+
+
+class CapabilityCount(CamelModel):
+    """Count of advisory accounts that list one capability (integer meta)."""
+
+    capability: str
+    count: int
+
+
+class CapabilityBreakdown(CamelModel):
+    """Read-only per-capability account breakdown (flatten of account capabilities; not a SoT).
+
+    Flatten semantics: an account listing N capabilities contributes to N buckets; an account with
+    an empty capabilities list contributes to none. total_memberships (= sum of by_capability
+    counts) need NOT equal total_accounts.
+    """
+
+    by_capability: list[CapabilityCount]
+    total_accounts: int
+    total_memberships: int
+    source: str
+
+
+def capability_breakdown() -> CapabilityBreakdown:
+    """Flatten account capabilities into per-capability counts (deterministic; empty->none)."""
+    from banxe_trading_backend.risk.greeks import SANDBOX_MOCK  # lazy: avoid import cycle
+
+    accounts = account_metadata().accounts
+    counts: dict[str, int] = {}
+    for acct in accounts:
+        for cap in acct.capabilities:
+            counts[cap] = counts.get(cap, 0) + 1
+    return CapabilityBreakdown(
+        by_capability=[CapabilityCount(capability=c, count=counts[c]) for c in sorted(counts)],
+        total_accounts=len(accounts),
+        total_memberships=sum(counts.values()),
+        source=SANDBOX_MOCK,
+    )

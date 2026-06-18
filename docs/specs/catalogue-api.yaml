@@ -91,6 +91,22 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/NetworkBreakdown" }
+  /v1/catalogue/capability-breakdown:
+    get:
+      operationId: getCapabilityBreakdown
+      summary: Capability breakdown (per-capability account counts, flatten, read-only)
+      description: >
+        Read-only per-capability account counts, derived by flattening each advisory account's
+        capabilities list. Flatten semantics: an account with N capabilities contributes to N
+        buckets; an account with an empty capabilities list contributes to none, so
+        total_memberships (sum of by_capability counts) need NOT equal total_accounts. Integer meta
+        counts only; NO balances, postings, amounts, APY, fees, or payments.
+      responses:
+        "200":
+          description: Capability breakdown (sandbox-mock)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CapabilityBreakdown" }
 components:
   schemas:
     CatalogueMeta:
@@ -213,4 +229,29 @@ components:
           description: >
             sum of by_network counts (network memberships); need NOT equal totalAssets because
             multi-network assets count once per network and empty-networks assets count in none.
+        source: { type: string, enum: [sandbox-mock] }
+
+    CapabilityCount:
+      type: object
+      required: [capability, count]
+      additionalProperties: false
+      properties:
+        capability:
+          type: string
+          description: >
+            advisory account capability label; canonical examples fiat / crypto / self_custodial /
+            internal, but any catalogued capability may appear — non-exhaustive, matches runtime.
+        count: { type: integer, description: "account count for this capability (meta, not a money value)" }
+    CapabilityBreakdown:
+      type: object
+      required: [byCapability, totalAccounts, totalMemberships, source]
+      additionalProperties: false
+      properties:
+        byCapability: { type: array, items: { $ref: "#/components/schemas/CapabilityCount" } }
+        totalAccounts: { type: integer, description: "account count (denominator; not sum of counts)" }
+        totalMemberships:
+          type: integer
+          description: >
+            sum of by_capability counts (capability memberships); need NOT equal totalAccounts because
+            multi-capability accounts count once per capability and empty-capability accounts count in none.
         source: { type: string, enum: [sandbox-mock] }
