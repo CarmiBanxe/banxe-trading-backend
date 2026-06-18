@@ -57,6 +57,28 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/InstrumentAssetXref" }
+  /v1/assets/{asset}/markets:
+    get:
+      operationId: getAssetMarkets
+      summary: Asset -> markets reverse cross-reference (read-only)
+      description: >
+        Read-only list of markets (instrument<->asset cross-references) where the given asset is
+        the base or quote. Filter over the existing markets bundle; reuses InstrumentAssetXref.
+        NO balances, fees, execution, payments, or wallet ops. An asset with no markets returns an
+        empty list (non-404, consistent with the asset/list API style).
+      parameters:
+        - in: path
+          name: asset
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Markets for the asset (sandbox-mock; empty if none)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/InstrumentAssetXref" }
 components:
   schemas:
     InstrumentInfo:

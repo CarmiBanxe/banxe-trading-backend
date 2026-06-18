@@ -11,6 +11,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from banxe_trading_backend.assets.catalog import AssetCatalogResponse, asset_catalog
+from banxe_trading_backend.instruments.xref import InstrumentAssetXref, markets_for_asset
 from banxe_trading_backend.ports import MarketDataPort
 
 from .deps import get_market_data
@@ -23,3 +24,10 @@ async def get_asset_metadata(
     market_data: MarketDataPort = Depends(get_market_data),
 ) -> AssetCatalogResponse:
     return asset_catalog(market_data)
+
+
+
+@router.get("/assets/{asset}/markets", response_model=list[InstrumentAssetXref])
+async def get_asset_markets(asset: str) -> list[InstrumentAssetXref]:
+    # M1.13: reverse projection -> markets where the asset is base or quote (read-only).
+    return markets_for_asset(asset)
