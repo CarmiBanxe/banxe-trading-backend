@@ -1,15 +1,16 @@
 """Symbols / instruments REST router (ADR-021 §D3).
 
 TODO(ADR-021 governance): the real symbols/instruments catalogue source is
-undecided. The skeleton serves the MarketDataPort mock catalogue + a stub
-instrument descriptor.
+undecided. The skeleton serves the MarketDataPort mock symbol catalogue;
+instrument trading-parameters come from instruments.params (config-as-data, M1.9).
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
-from banxe_trading_backend.models import InstrumentInfo, SymbolInfo, split_symbol
+from banxe_trading_backend.instruments.params import InstrumentParamsError, instrument_info
+from banxe_trading_backend.models import InstrumentInfo, SymbolInfo
 from banxe_trading_backend.ports import MarketDataPort
 
 from .deps import get_market_data
@@ -26,12 +27,9 @@ async def list_symbols(
 
 @router.get("/instruments/{symbol}", response_model=InstrumentInfo)
 async def get_instrument(symbol: str) -> InstrumentInfo:
-    base, quote = split_symbol(symbol)
-    # Stub descriptor; real tick/min/max/fee come from the catalogue source (TODO).
-    return InstrumentInfo(
-        symbol=f"{base}-{quote}",
-        tick_size="0.01",
-        min_qty="0.0001",
-        max_qty="1000",
-        fee_schedule_ref="default",
-    )
+    # M1.9: config-as-data advisory trading parameters (single source: instruments.params);
+    # fail-closed 404 for an unknown symbol (no fabricated stub). FeeEnginePort still owns fees.
+    try:
+        return instrument_info(symbol)
+    except InstrumentParamsError as exc:
+        raise HTTPException(status_code=404, detail=f"unknown instrument: {symbol}") from exc
