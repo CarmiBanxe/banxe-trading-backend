@@ -61,6 +61,20 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SymbolsBreakdown" }
+  /v1/catalogue/accounts-breakdown:
+    get:
+      operationId: getAccountsBreakdown
+      summary: Accounts breakdown (by type / ledger-nature / status, read-only)
+      description: >
+        Read-only advisory account counts grouped by account_type, ledger_nature and account_status,
+        derived from the advisory account-metadata accessor. Integer meta counts only; NO balances,
+        postings, amounts, ledger ops, APY, fees, or payments. Midaz LedgerPort is not called.
+      responses:
+        "200":
+          description: Accounts breakdown (sandbox-mock)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountsBreakdown" }
 components:
   schemas:
     CatalogueMeta:
@@ -136,4 +150,26 @@ components:
         byPricePrecision: { type: array, items: { $ref: "#/components/schemas/SymbolDimensionCount" } }
         byQtyPrecision: { type: array, items: { $ref: "#/components/schemas/SymbolDimensionCount" } }
         total: { type: integer, description: "number of symbols" }
+        source: { type: string, enum: [sandbox-mock] }
+
+    AccountDimensionCount:
+      type: object
+      required: [key, count]
+      additionalProperties: false
+      properties:
+        key:
+          type: string
+          description: >
+            categorical account-dimension value; e.g. account_type INTERNAL/EXTERNAL/SYSTEM,
+            ledger_nature ACTIVE/PASSIVE, account_status ACTIVE — non-exhaustive, matches runtime.
+        count: { type: integer, description: "account count for this key (meta, not a money value)" }
+    AccountsBreakdown:
+      type: object
+      required: [byAccountType, byLedgerNature, byAccountStatus, total, source]
+      additionalProperties: false
+      properties:
+        byAccountType: { type: array, items: { $ref: "#/components/schemas/AccountDimensionCount" } }
+        byLedgerNature: { type: array, items: { $ref: "#/components/schemas/AccountDimensionCount" } }
+        byAccountStatus: { type: array, items: { $ref: "#/components/schemas/AccountDimensionCount" } }
+        total: { type: integer, description: "number of advisory accounts" }
         source: { type: string, enum: [sandbox-mock] }

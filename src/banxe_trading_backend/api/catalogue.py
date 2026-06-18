@@ -9,9 +9,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from banxe_trading_backend.meta.breakdown import (
+    AccountsBreakdown,
     CatalogueBreakdown,
     InstrumentsBreakdown,
     SymbolsBreakdown,
+    accounts_breakdown,
     catalogue_breakdown,
     instruments_breakdown,
     symbols_breakdown,
@@ -51,4 +53,10 @@ async def get_symbols_breakdown(
 ) -> SymbolsBreakdown:
     # M1.19: read-only symbol breakdown by status/precision (derived; base/quote owned by M1.17).
     return symbols_breakdown(market_data)
+
+
+@router.get("/catalogue/accounts-breakdown", response_model=AccountsBreakdown)
+async def get_accounts_breakdown() -> AccountsBreakdown:
+    # M1.20: read-only account breakdown by type/ledger-nature/status (derived; no balances).
+    return accounts_breakdown()
 
