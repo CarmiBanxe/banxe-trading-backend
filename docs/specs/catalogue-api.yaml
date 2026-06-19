@@ -141,6 +141,24 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AdvisorySurfaceManifest" }
+  /v1/catalogue/schema-inventory:
+    get:
+      operationId: getSchemaInventory
+      summary: Schema inventory (advisory DTO-family counts, static config-as-data, read-only)
+      description: >
+        Read-only inventory of the advisory DTO/schema families published by the migration lane,
+        with per-family DTO counts and the reused package version. Config-as-data ONLY (a curated
+        list, NOT an import/reflection scan); by construction it excludes live/regulated/auth/
+        orderbook/quote DTOs (PlaceOrderRequest, OrderResult, RawOrderBook*, Nonce/Verify/Session,
+        Quote*). Distinct from catalogue_meta (data-row counts) and the advisory-surface manifest
+        (endpoint families). Integer meta counts only; NO balances, APY, fees, uptime, or infra
+        metrics.
+      responses:
+        "200":
+          description: Schema inventory (sandbox-mock)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SchemaInventory" }
 components:
   schemas:
     CatalogueMeta:
@@ -334,5 +352,27 @@ components:
         families: { type: array, items: { $ref: "#/components/schemas/AdvisorySurfaceFamily" } }
         totalFamilies: { type: integer }
         totalEndpoints: { type: integer, description: "sum of per-family endpoint counts (meta)" }
+        version: { type: string, description: "reused package __version__ (not a second version source)" }
+        source: { type: string, enum: [sandbox-mock] }
+
+    SchemaFamily:
+      type: object
+      required: [family, dtoCount]
+      additionalProperties: false
+      properties:
+        family:
+          type: string
+          description: >
+            advisory DTO family label; canonical examples earn / breakdown, but any advisory family
+            may appear -- non-exhaustive, grows as advisory DTO families are added (no hard enum).
+        dtoCount: { type: integer, description: "advisory DTOs in this family (meta)" }
+    SchemaInventory:
+      type: object
+      required: [families, totalFamilies, totalDtos, version, source]
+      additionalProperties: false
+      properties:
+        families: { type: array, items: { $ref: "#/components/schemas/SchemaFamily" } }
+        totalFamilies: { type: integer }
+        totalDtos: { type: integer, description: "sum of per-family DTO counts (meta)" }
         version: { type: string, description: "reused package __version__ (not a second version source)" }
         source: { type: string, enum: [sandbox-mock] }
