@@ -159,6 +159,23 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SchemaInventory" }
+  /v1/catalogue/changelog:
+    get:
+      operationId: getAdvisoryChangelog
+      summary: Advisory-surface changelog (substep provenance, static config-as-data, read-only)
+      description: >
+        Read-only ordered provenance of the advisory M1.x substeps published in this backend build,
+        with the reused package version. Config-as-data ONLY (a curated ordered list, NOT a
+        reflection/route/DTO/exception scan); carries no live/regulated/auth error models and no
+        live error injection. Distinct from catalogue_meta (data-row counts), the advisory-surface
+        manifest (endpoint families), and the schema inventory (DTO families). Integer meta count
+        only; NO balances, APY, fees, uptime, or infra metrics.
+      responses:
+        "200":
+          description: Advisory-surface changelog (sandbox-mock)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdvisorySurfaceChangelog" }
 components:
   schemas:
     CatalogueMeta:
@@ -374,5 +391,26 @@ components:
         families: { type: array, items: { $ref: "#/components/schemas/SchemaFamily" } }
         totalFamilies: { type: integer }
         totalDtos: { type: integer, description: "sum of per-family DTO counts (meta)" }
+        version: { type: string, description: "reused package __version__ (not a second version source)" }
+        source: { type: string, enum: [sandbox-mock] }
+
+    ChangelogEntry:
+      type: object
+      required: [substep, title]
+      additionalProperties: false
+      properties:
+        substep:
+          type: string
+          description: >
+            advisory substep label; canonical example M1.24, but any advisory substep may appear --
+            non-exhaustive, grows as advisory substeps are added (no hard enum).
+        title: { type: string, description: "short descriptive title of the advisory substep" }
+    AdvisorySurfaceChangelog:
+      type: object
+      required: [entries, totalEntries, version, source]
+      additionalProperties: false
+      properties:
+        entries: { type: array, items: { $ref: "#/components/schemas/ChangelogEntry" } }
+        totalEntries: { type: integer, description: "number of advisory substep entries (meta)" }
         version: { type: string, description: "reused package __version__ (not a second version source)" }
         source: { type: string, enum: [sandbox-mock] }
