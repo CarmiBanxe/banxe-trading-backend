@@ -124,6 +124,23 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SupportedAssetBreakdown" }
+  /v1/catalogue/advisory-surface:
+    get:
+      operationId: getAdvisorySurface
+      summary: Advisory-surface manifest (static config-as-data inventory, read-only)
+      description: >
+        Read-only inventory of the advisory read-only endpoint families published by the migration
+        lane, with per-family endpoint counts and the reused package version. Config-as-data ONLY
+        (a curated list, NOT a programmatic route scan); by construction it excludes infra
+        (/internal/*, /healthz) and live/regulated/sandbox surfaces (orders, execution, fees, quant,
+        market_making, marketplace, sandbox, baas). Integer meta counts only; NO balances, postings,
+        APY, fees, uptime, latency, or any infra/ops metric.
+      responses:
+        "200":
+          description: Advisory-surface manifest (sandbox-mock)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdvisorySurfaceManifest" }
 components:
   schemas:
     CatalogueMeta:
@@ -296,4 +313,26 @@ components:
           description: >
             sum of by_supported_asset counts (account-asset support memberships); need NOT equal
             totalAccounts because multi-asset accounts count once per asset and empty accounts count in none.
+        source: { type: string, enum: [sandbox-mock] }
+
+    AdvisorySurfaceFamily:
+      type: object
+      required: [family, endpointCount]
+      additionalProperties: false
+      properties:
+        family:
+          type: string
+          description: >
+            advisory surface family label; canonical examples earn / catalogue, but any advisory
+            family may appear -- non-exhaustive, grows as advisory families are added (no hard enum).
+        endpointCount: { type: integer, description: "read-only advisory endpoints in this family (meta)" }
+    AdvisorySurfaceManifest:
+      type: object
+      required: [families, totalFamilies, totalEndpoints, version, source]
+      additionalProperties: false
+      properties:
+        families: { type: array, items: { $ref: "#/components/schemas/AdvisorySurfaceFamily" } }
+        totalFamilies: { type: integer }
+        totalEndpoints: { type: integer, description: "sum of per-family endpoint counts (meta)" }
+        version: { type: string, description: "reused package __version__ (not a second version source)" }
         source: { type: string, enum: [sandbox-mock] }

@@ -25,6 +25,7 @@ from banxe_trading_backend.meta.breakdown import (
     symbols_breakdown,
 )
 from banxe_trading_backend.meta.catalogue import CatalogueMeta, catalogue_meta
+from banxe_trading_backend.meta.manifest import AdvisorySurfaceManifest, advisory_surface_manifest
 from banxe_trading_backend.ports import MarketDataPort
 
 from .deps import get_market_data
@@ -85,4 +86,10 @@ async def get_capability_breakdown() -> CapabilityBreakdown:
 async def get_supported_asset_breakdown() -> SupportedAssetBreakdown:
     # M1.23: read-only per-supported-asset account breakdown (flatten; accounts-per-asset, derived).
     return supported_asset_breakdown()
+
+
+@router.get("/catalogue/advisory-surface", response_model=AdvisorySurfaceManifest)
+async def get_advisory_surface() -> AdvisorySurfaceManifest:
+    # M1.24: read-only advisory-surface manifest (static config-as-data inventory).
+    return advisory_surface_manifest()
 
