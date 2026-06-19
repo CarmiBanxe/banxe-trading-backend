@@ -25,6 +25,10 @@ from banxe_trading_backend.meta.breakdown import (
     symbols_breakdown,
 )
 from banxe_trading_backend.meta.catalogue import CatalogueMeta, catalogue_meta
+from banxe_trading_backend.meta.changelog import (
+    AdvisorySurfaceChangelog,
+    advisory_surface_changelog,
+)
 from banxe_trading_backend.meta.manifest import AdvisorySurfaceManifest, advisory_surface_manifest
 from banxe_trading_backend.meta.schema import SchemaInventory, schema_inventory
 from banxe_trading_backend.ports import MarketDataPort
@@ -99,4 +103,10 @@ async def get_advisory_surface() -> AdvisorySurfaceManifest:
 async def get_schema_inventory() -> SchemaInventory:
     # M1.25: read-only advisory DTO/schema-family inventory (static config-as-data; reuse version).
     return schema_inventory()
+
+
+@router.get("/catalogue/changelog", response_model=AdvisorySurfaceChangelog)
+async def get_advisory_changelog() -> AdvisorySurfaceChangelog:
+    # M1.26: read-only advisory-surface changelog (static config-as-data substep provenance).
+    return advisory_surface_changelog()
 
