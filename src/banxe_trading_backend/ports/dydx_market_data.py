@@ -234,8 +234,13 @@ class DydxMarketDataAdapter:
 
     @classmethod
     def from_settings(cls, settings: Settings) -> DydxMarketDataAdapter:
+        # S6.2-EN config-as-data: BANXE_DSE_MARKET_BASE_URL is the operator-facing
+        # override for the dYdX public Indexer base; empty falls back to the
+        # built-in mainnet default. WS URL stays its own seam (no DSE flag for it,
+        # public Indexer naming is fixed). NO API key — dYdX market data is public.
+        rest_url = settings.dse_market_base_url or settings.dydx_indexer_rest_url
         transport = HttpxWebsocketsTransport(
-            rest_url=settings.dydx_indexer_rest_url,
+            rest_url=rest_url,
             ws_url=settings.dydx_indexer_ws_url,
         )
         return cls(transport)

@@ -18,9 +18,11 @@ class Settings(BaseSettings):
     api_prefix: str = "/api/v1"
 
     # --- provider selection ---
-    # MarketDataPort provider: "mock" (default — deterministic CI, no network)
-    # or "dydx" (public dYdX v4 Indexer, API-only; ADR-083 S6.2). Default stays
-    # "mock" so nothing live runs in tests/CI.
+    # Legacy MarketDataPort selector — kept for backwards compatibility. S6.2-EN
+    # supersedes this with the BANXE_DSE_PROVIDER_MODE / BANXE_DSE_MARKET_PROVIDER
+    # / BANXE_DSE_LIVE_ALLOWED triple as the actual routing gate (see provider
+    # foundation / `resolve_market_data_route`); this value is no longer the
+    # driver. Default stays "mock" so nothing live runs in tests/CI.
     market_data_provider: str = "mock"
 
     # --- dYdX v4 Indexer (PUBLIC market data; API-only, NO secrets/keys) ---
