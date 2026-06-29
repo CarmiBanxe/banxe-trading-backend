@@ -44,6 +44,7 @@ from banxe_trading_backend.dse import (
     foundation_profile,
     provider_profile,
     resolve_foundation,
+    resolve_market_data_route,
 )
 from banxe_trading_backend.earn import (
     EarnRatesCatalog,
@@ -92,10 +93,12 @@ def _build_exchange(settings: Settings) -> ExchangePort:
 
 
 def _build_market_data(settings: Settings) -> MarketDataPort:
-    # Provider-parameterized. Default "mock" → deterministic, no network.
-    # "dydx" → public dYdX v4 Indexer (API-only; ADR-083 S6.2); constructed
-    # lazily here (no connection opens until the WS/REST is actually used).
-    if settings.market_data_provider == "dydx":
+    # S6.2-EN: route to the public dYdX v4 Indexer adapter (API-only; ADR-083)
+    # ONLY when the full sandbox-live + dydx + kill-switch combo is satisfied.
+    # Any other combination (kill-switch off, mock mode, etc.) fail-closes to
+    # the in-memory mock — never hard-fails (spec: never silently serve stale).
+    # The live transport is constructed lazily, so no connection opens here.
+    if resolve_market_data_route(settings) == "dydx":
         return DydxMarketDataAdapter.from_settings(settings)
     return InMemoryMockMarketData()
 

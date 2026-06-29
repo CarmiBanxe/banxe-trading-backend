@@ -226,3 +226,30 @@ def foundation_profile(foundation: FoundationProviders) -> dict[str, dict[str, s
         },
         "stress": {"tier": foundation.stress_tier, "source": type(foundation.stress).__name__},
     }
+
+
+# --------------------------- S6.2-EN market-data route ---------------------- #
+
+
+#: Provider value selecting the public dYdX v4 Indexer for market data.
+DYDX_MARKET_PROVIDER = "dydx"
+
+
+def resolve_market_data_route(settings: Settings) -> str:
+    """S6.2-EN: pick the MarketDataPort route from the DSE flag triple.
+
+    Returns ``"dydx"`` iff **all three** of the gating flags are on:
+    ``BANXE_DSE_PROVIDER_MODE=sandbox-live`` **and**
+    ``BANXE_DSE_MARKET_PROVIDER=dydx`` **and**
+    ``BANXE_DSE_LIVE_ALLOWED=true``. Any other combination — kill-switch off,
+    non-dydx provider, mock mode — returns ``"mock"`` (fail-closed; the spec
+    forbids hard-failing on a partial config). The dYdX Indexer is the only
+    wired live market source this sprint; nothing else is registered here.
+    """
+    if (
+        settings.dse_provider_mode == "sandbox-live"
+        and settings.dse_market_provider == DYDX_MARKET_PROVIDER
+        and settings.dse_live_allowed
+    ):
+        return DYDX_MARKET_PROVIDER
+    return "mock"

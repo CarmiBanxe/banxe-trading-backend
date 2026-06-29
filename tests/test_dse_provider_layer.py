@@ -56,8 +56,25 @@ def test_assert_mock_only_passes_for_defaults() -> None:
 
 
 def test_non_mock_mode_is_operator_gated() -> None:
+    # prod-live remains ODR-gated (no live wiring). sandbox-live is allowed now
+    # (S6.2-EN) but kill-switch off / partial combo silently fall back to mock.
     with pytest.raises(LiveProviderNotWiredError, match="OPERATOR-GATED"):
         assert_mock_only(Settings(dse_provider_mode="prod-live"))
+
+
+def test_sandbox_live_kill_switch_off_does_not_raise() -> None:
+    # S6.2-EN: sandbox-live mode without the full dydx + kill-switch combo must
+    # fail-closed (i.e. NOT raise) — the runtime simply mocks the market route.
+    assert_mock_only(Settings(dse_provider_mode="sandbox-live"))
+
+
+def test_sandbox_live_full_dydx_combo_passes() -> None:
+    # The one wired sandbox-live route: all three flags ON, all other domains mock.
+    assert_mock_only(Settings(
+        dse_provider_mode="sandbox-live",
+        dse_market_provider="dydx",
+        dse_live_allowed=True,
+    ))
 
 
 def test_unknown_mode_is_rejected() -> None:
@@ -75,9 +92,16 @@ def test_non_mock_provider_value_is_operator_gated(field: str) -> None:
         assert_mock_only(Settings(**{field: "live"}))
 
 
-def test_create_app_refuses_non_mock_config() -> None:
+def test_create_app_refuses_prod_live_config() -> None:
+    # prod-live mode is OPERATOR-GATED — no live wiring exists this sprint.
     with pytest.raises(LiveProviderNotWiredError):
-        create_app(Settings(dse_provider_mode="sandbox-live"))
+        create_app(Settings(dse_provider_mode="prod-live"))
+
+
+def test_create_app_refuses_unwired_live_provider() -> None:
+    # An unwired live value on any domain still raises (only market=dydx is wired).
+    with pytest.raises(LiveProviderNotWiredError):
+        create_app(Settings(dse_sentiment_provider="live"))
 
 
 # ------------------------------- safe profile ------------------------------- #

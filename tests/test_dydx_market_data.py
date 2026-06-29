@@ -149,13 +149,176 @@ def test_list_symbols_returns_dydx_markets() -> None:
 def test_mock_is_default_provider() -> None:
     from banxe_trading_backend.app import create_app
 
-    app = create_app(Settings(market_data_provider="mock"))
+    # Default config (mode=mock, market_provider=mock, kill-switch off) → mock.
+    app = create_app(Settings())
     assert isinstance(app.state.market_data, InMemoryMockMarketData)
 
 
 def test_dydx_provider_builds_adapter_without_network() -> None:
     from banxe_trading_backend.app import create_app
 
+    # Full S6.2-EN sandbox-live combo: mode + provider + kill-switch ALL on.
     # Building the dydx provider must NOT open any connection (lazy transport).
-    app = create_app(Settings(market_data_provider="dydx"))
+    app = create_app(Settings(
+        dse_provider_mode="sandbox-live",
+        dse_market_provider="dydx",
+        dse_live_allowed=True,
+    ))
     assert isinstance(app.state.market_data, DydxMarketDataAdapter)
+
+
+# --------------------------------------------------------------------------- #
+# S6.2-EN conformance: flag-gate selection matrix + fail-closed fallback       #
+# --------------------------------------------------------------------------- #
+
+
+def _build_market_data_for(**overrides: object) -> object:
+    """Resolve the MarketDataPort the app would build under ``overrides``.
+
+    Constructs Settings with the given DSE overrides (everything else default
+    mock) and reads ``app.state.market_data`` after ``create_app``. No network
+    is opened — the dydx transport is lazy.
+    """
+    from banxe_trading_backend.app import create_app
+
+    return create_app(Settings(**overrides)).state.market_data  # type: ignore[arg-type]
+
+
+def test_selection_full_combo_routes_to_dydx() -> None:
+    """All three flags ON → dYdX adapter (the one wired live route)."""
+    md = _build_market_data_for(
+        dse_provider_mode="sandbox-live",
+        dse_market_provider="dydx",
+        dse_live_allowed=True,
+    )
+    assert isinstance(md, DydxMarketDataAdapter)
+
+
+def test_selection_kill_switch_off_fails_closed_to_mock() -> None:
+    """dydx + sandbox-live but kill-switch off → fail-closed to mock (no raise)."""
+    md = _build_market_data_for(
+        dse_provider_mode="sandbox-live",
+        dse_market_provider="dydx",
+        dse_live_allowed=False,
+    )
+    assert isinstance(md, InMemoryMockMarketData)
+
+
+def test_selection_mode_mock_routes_to_mock_even_with_kill_switch_on() -> None:
+    """mode=mock dominates: even with kill-switch on + dydx, stays on mock."""
+    md = _build_market_data_for(
+        dse_provider_mode="mock",
+        dse_market_provider="dydx",
+        dse_live_allowed=True,
+    )
+    assert isinstance(md, InMemoryMockMarketData)
+
+
+def test_selection_provider_mock_routes_to_mock() -> None:
+    """sandbox-live + kill-switch but provider=mock → mock (kept on default)."""
+    md = _build_market_data_for(
+        dse_provider_mode="sandbox-live",
+        dse_market_provider="mock",
+        dse_live_allowed=True,
+    )
+    assert isinstance(md, InMemoryMockMarketData)
+
+
+def test_selection_defaults_route_to_mock() -> None:
+    """The shipped default config routes to the in-memory mock (CI-safe)."""
+    md = _build_market_data_for()
+    assert isinstance(md, InMemoryMockMarketData)
+
+
+def test_dydx_adapter_uses_dse_market_base_url_when_set() -> None:
+    """config-as-data: BANXE_DSE_MARKET_BASE_URL overrides the default REST host."""
+    from banxe_trading_backend.app import create_app
+    from banxe_trading_backend.ports.dydx_market_data import HttpxWebsocketsTransport
+
+    settings = Settings(
+        dse_provider_mode="sandbox-live",
+        dse_market_provider="dydx",
+        dse_live_allowed=True,
+        dse_market_base_url="https://indexer.example.test/v4",
+    )
+    md = create_app(settings).state.market_data
+    assert isinstance(md, DydxMarketDataAdapter)
+    transport = md._transport  # noqa: SLF001 — verifying config-as-data wiring
+    assert isinstance(transport, HttpxWebsocketsTransport)
+    assert transport._rest_url == "https://indexer.example.test/v4"  # noqa: SLF001
+
+
+def test_dydx_adapter_falls_back_to_built_in_rest_url_when_dse_base_url_empty() -> None:
+    """No ``dse_market_base_url`` set → use the public dYdX Indexer default."""
+    from banxe_trading_backend.app import create_app
+    from banxe_trading_backend.ports.dydx_market_data import HttpxWebsocketsTransport
+
+    settings = Settings(
+        dse_provider_mode="sandbox-live",
+        dse_market_provider="dydx",
+        dse_live_allowed=True,
+    )
+    md = create_app(settings).state.market_data
+    assert isinstance(md, DydxMarketDataAdapter)
+    transport = md._transport  # noqa: SLF001
+    assert isinstance(transport, HttpxWebsocketsTransport)
+    assert transport._rest_url == "https://indexer.dydx.trade/v4"  # noqa: SLF001
+
+
+# --- Fail-closed on provider error: a failing dydx transport must surface --- #
+# Below we use the adapter directly to assert error semantics at the I/O seam.
+
+
+class _FailingTransport:
+    """A DydxIndexerTransport that raises on every call (simulates outage)."""
+
+    async def fetch_orderbook(self, ticker: str) -> Mapping[str, object]:
+        raise ConnectionError("simulated dYdX Indexer outage")
+
+    async def stream_orderbook(
+        self, ticker: str
+    ) -> AsyncIterator[Mapping[str, object]]:
+        raise ConnectionError("simulated dYdX Indexer outage")
+        yield {}  # pragma: no cover — unreachable; satisfies AsyncIterator typing
+
+
+def test_provider_error_surfaces_at_io_seam() -> None:
+    """The adapter does NOT swallow transport errors silently; the WS handler
+    above the port is responsible for the mock fallback. Asserts the error is
+    raised at the I/O seam so the host-level fail-closed can detect & re-route.
+    """
+    import pytest
+
+    adapter = DydxMarketDataAdapter(_FailingTransport())  # type: ignore[arg-type]
+    with pytest.raises(ConnectionError):
+        asyncio.run(adapter.get_snapshot("BTC-USD"))
+
+
+def test_resolver_helper_returns_dydx_only_under_full_combo() -> None:
+    """Direct unit test of the resolver: dydx iff all three flags ON, else mock."""
+    from banxe_trading_backend.dse import resolve_market_data_route
+
+    ON = {
+        "dse_provider_mode": "sandbox-live",
+        "dse_market_provider": "dydx",
+        "dse_live_allowed": True,
+    }
+    assert resolve_market_data_route(Settings(**ON)) == "dydx"
+    # Drop any single flag → fall back to mock.
+    for drop in ON:
+        partial = {k: v for k, v in ON.items() if k != drop}
+        assert resolve_market_data_route(Settings(**partial)) == "mock", drop
+    # Mock everything (default) → mock.
+    assert resolve_market_data_route(Settings()) == "mock"
+
+
+def test_decimal_validation_rejects_floats_in_diffs_too() -> None:
+    """I-01 reinforces: floats are rejected at the boundary in BOTH paths."""
+    import pytest
+
+    # Snapshot path already covered by test_decimal_fidelity_rejects_float_i01.
+    # Confirm the diff path also rejects a float in a [price, size] pair.
+    with pytest.raises(TypeError):
+        map_batch_update([{"bids": [[100.0, "1.0"]]}], sequence=1)
+    with pytest.raises(TypeError):
+        map_batch_update([{"asks": [["100.0", 1.0]]}], sequence=1)

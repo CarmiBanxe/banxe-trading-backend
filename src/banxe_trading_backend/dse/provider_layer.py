@@ -86,32 +86,43 @@ def provider_profile(settings: Settings) -> ProviderProfile:
 
 
 def assert_mock_only(settings: Settings) -> None:
-    """Startup safety-rail: refuse any non-mock DSE provider mode/value (ODR).
+    """Startup safety-rail: refuse non-mock DSE provider mode/value (ODR), with
+    the **narrow** S6.2-EN exception for the dYdX public market-data route.
 
     The live implementations do not exist yet, so a non-mock configuration must
-    fail fast rather than silently degrade. This keeps the default (and only)
-    behaviour mock/sandbox. Flipping any of these to live is an OPERATOR DECISION
-    (ODR) requiring compliance sign-off (MiCA / BaaS).
+    fail fast rather than silently degrade — except for the one wired live route:
+    sandbox-live mode + ``dse_market_provider=dydx`` + ``dse_live_allowed=true``
+    routes market-data to the public dYdX Indexer (S6.2-EN). All OTHER domains
+    must still resolve to mock. A partial sandbox-live config (e.g. kill-switch
+    off) fail-closes to mock at runtime — it does NOT raise (spec: never
+    hard-fail). ``prod-live`` mode remains ODR-gated.
     """
     mode = resolve_mode(settings.dse_provider_mode)
-    if mode is not ProviderMode.MOCK:
+    if mode is ProviderMode.PROD_LIVE:
         raise LiveProviderNotWiredError(
             f"DSE provider mode {mode.value!r} is OPERATOR-GATED (ODR); "
-            "only 'mock' is wired this sprint"
+            "only 'mock' and the sandbox-live dYdX market route are wired this sprint"
         )
-    non_mock = {
-        domain: value
-        for domain, value in {
-            "market": settings.dse_market_provider,
-            "sentiment": settings.dse_sentiment_provider,
-            "stress": settings.dse_stress_provider,
-            "risk": settings.dse_risk_provider,
-            "earn": settings.dse_earn_provider,
-            "risk_greeks": settings.risk_greeks_provider,
-            "earn_rates": settings.earn_rates_provider,
-        }.items()
-        if value != MOCK
-    }
+    # The only wired non-mock domain value is market=dydx (S6.2-EN). Anything
+    # else with a non-mock value is an unwired live provider → fail fast.
+    non_mock: dict[str, str] = {}
+    for domain, value in {
+        "market": settings.dse_market_provider,
+        "sentiment": settings.dse_sentiment_provider,
+        "stress": settings.dse_stress_provider,
+        "risk": settings.dse_risk_provider,
+        "earn": settings.dse_earn_provider,
+        "risk_greeks": settings.risk_greeks_provider,
+        "earn_rates": settings.earn_rates_provider,
+    }.items():
+        if value == MOCK:
+            continue
+        if domain == "market" and value == "dydx":
+            # S6.2-EN-wired live route; kill-switch off → runtime fail-closes to
+            # mock (not raised here). Any other dydx-without-combo case is also
+            # tolerated and fail-closed at the build step.
+            continue
+        non_mock[domain] = value
     if non_mock:
         raise LiveProviderNotWiredError(
             f"non-mock DSE providers are OPERATOR-GATED (ODR), not wired: {non_mock}"
