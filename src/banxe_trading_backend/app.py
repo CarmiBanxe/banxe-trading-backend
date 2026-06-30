@@ -43,6 +43,7 @@ from banxe_trading_backend.dse import (
     assert_mock_only,
     foundation_profile,
     provider_profile,
+    resolve_exchange_route,
     resolve_foundation,
     resolve_market_data_route,
 )
@@ -85,9 +86,15 @@ def _build_wallet_auth(settings: Settings) -> WalletAuthPort:
 
 
 def _build_exchange(settings: Settings) -> ExchangePort:
-    # Provider-parameterized. Default "mock" → deterministic, no network.
-    # "dydx" → unsigned-intent adapter (ADR-083 S6.3a); no signing/submission.
-    if settings.exchange_provider == "dydx":
+    # S6.4-EN Phase-2a: route to the dYdX ExchangePort adapter (UNSIGNED intent
+    # construction; ADR-083 self-custodial) ONLY when the FULL sandbox-live +
+    # dydx + master-kill-switch + per-venue-kill-switch + valid testnet node URL
+    # combo is satisfied. Any other combination (kill-switch off, missing URL,
+    # mock mode, partial config) fail-closes to the deterministic in-memory mock
+    # — never hard-fails (spec: never silently serve a partial live route).
+    # The dydx adapter ONLY produces unsigned intents on this surface; live
+    # submission transport remains Phase-2b (operator-gated; not wired here).
+    if resolve_exchange_route(settings) == "dydx":
         return DydxExchangeAdapter.from_settings(settings)
     return InMemoryMockExchange()
 
@@ -165,6 +172,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # S10: safe (non-secret) per-domain foundation provenance (tier + source).
     app.state.dse_foundation_profile = foundation_profile(foundation)
     app.state.exchange = _build_exchange(settings)
+    # S6.4-EN: resolved exchange route ("dydx" iff full combo, else "mock"). The
+    # orders router reads this to apply the HITL gate ONLY on the live route
+    # (BUG-007). Pure value (no secrets) — safe for observability.
+    app.state.exchange_route = resolve_exchange_route(settings)
     app.state.market_data = _build_market_data(settings)
     app.state.quote = _build_quote(settings)
     app.state.dse = _build_dse(settings, quote=app.state.quote)

@@ -33,12 +33,14 @@ from .models import (
 )
 from .profiles import AGGRESSIVE, BALANCED, CONSERVATIVE, weights_for
 from .provider_foundation import (
+    DYDX_EXCHANGE_PROVIDER,
     DYDX_MARKET_PROVIDER,
     FoundationProviders,
     MarketDataProvider,
     MarketSnapshot,
     ProviderTier,
     foundation_profile,
+    resolve_exchange_route,
     resolve_foundation,
     resolve_market_data_route,
 )
@@ -107,5 +109,7 @@ __all__ = [
     "resolve_foundation",
     "foundation_profile",
     "DYDX_MARKET_PROVIDER",
+    "DYDX_EXCHANGE_PROVIDER",
     "resolve_market_data_route",
+    "resolve_exchange_route",
 ]
