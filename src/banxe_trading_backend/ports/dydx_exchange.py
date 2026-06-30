@@ -110,11 +110,12 @@ def _client_id(client_order_id: str) -> int:
 _NODE_URL_SCHEMES = frozenset({"http", "https", "grpc", "grpcs", "tcp"})
 
 
-def _is_valid_node_url(url: str | None) -> bool:
+def is_valid_node_url(url: str | None) -> bool:
     """True only for a non-empty URL with a recognised scheme + host.
 
     No real endpoint is encoded here; this is pure syntactic validation so the
     submission gate flips deterministically once an operator supplies a URL.
+    Public so the S6.4-EN exchange-route resolver shares the same syntactic test.
     """
     if not url:
         return False
@@ -276,7 +277,7 @@ class DydxExchangeAdapter:
         identical to S6.3a: unsigned intents only, ``submitted: false``, and NO
         network call is ever made.
         """
-        return self._submit_enabled and _is_valid_node_url(self._node_url)
+        return self._submit_enabled and is_valid_node_url(self._node_url)
 
     async def submit_signed_order(self, signed_order: Mapping[str, object]) -> OrderResult:
         """Relay a CLIENT-signed order to the dYdX node (S6.3b-final).

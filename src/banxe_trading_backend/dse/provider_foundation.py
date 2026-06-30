@@ -253,3 +253,46 @@ def resolve_market_data_route(settings: Settings) -> str:
     ):
         return DYDX_MARKET_PROVIDER
     return "mock"
+
+
+# --------------------------- S6.4-EN exchange route ------------------------- #
+
+
+#: Provider value selecting the dYdX ExchangePort adapter (UNSIGNED intent).
+DYDX_EXCHANGE_PROVIDER = "dydx"
+
+
+def resolve_exchange_route(settings: Settings) -> str:
+    """S6.4-EN Phase-2a: pick the ExchangePort route from the FULL combo.
+
+    Returns ``"dydx"`` iff **all five** of the gating conditions hold:
+      * ``BANXE_EXCHANGE_PROVIDER=dydx``                     (provider selection)
+      * ``BANXE_DSE_PROVIDER_MODE=sandbox-live``             (overall mode)
+      * ``BANXE_DSE_LIVE_ALLOWED=true``                      (master kill-switch)
+      * ``BANXE_DYDX_SUBMIT_ENABLED=true``                   (per-venue kill-switch)
+      * ``BANXE_DYDX_NODE_URL`` is syntactically valid       (testnet endpoint)
+
+    Any other combination — flag off, missing/invalid URL, mock mode, partial
+    config — returns ``"mock"`` (fail-closed; the spec forbids hard-failing on a
+    partial config and forbids a silent live submit). The dYdX ExchangePort
+    adapter is the only wired live ExchangePort route this sprint; nothing else
+    is registered here.
+
+    Note (ADR-083 self-custodial): even under the full combo, the order surface
+    only constructs an UNSIGNED intent. Live submission transport is Phase-2b
+    (separate operator GO + Ruflo sign-off + kill-switch arming); the adapter
+    fences ``submit_signed_order`` independently via ``submission_enabled()``.
+    """
+    # Local import keeps the dse package independent of the ports package at
+    # module load (the foundation is imported by app startup).
+    from banxe_trading_backend.ports.dydx_exchange import is_valid_node_url
+
+    if (
+        settings.exchange_provider == DYDX_EXCHANGE_PROVIDER
+        and settings.dse_provider_mode == "sandbox-live"
+        and settings.dse_live_allowed
+        and settings.dydx_submit_enabled
+        and is_valid_node_url(settings.dydx_node_url)
+    ):
+        return DYDX_EXCHANGE_PROVIDER
+    return "mock"

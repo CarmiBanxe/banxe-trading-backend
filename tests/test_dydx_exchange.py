@@ -178,9 +178,28 @@ def test_d3_error_model_http_status_mapping() -> None:
 
 # --------------------------- router (dydx provider) ------------------------- #
 
+# Obviously-fake testnet URL — NOT a real endpoint. Tests only.
+FAKE_TESTNET_NODE_URL = "https://example-dydx-testnet-node.invalid"
+
+# S6.4-EN: route SELECTION requires the FULL combo (provider + sandbox-live mode
+# + master kill-switch + per-venue kill-switch + valid testnet node URL). Any
+# partial config fail-closes to the in-memory mock at build time.
+_DYDX_ROUTE_COMBO: dict[str, object] = {
+    "exchange_provider": "dydx",
+    "dse_provider_mode": "sandbox-live",
+    "dse_live_allowed": True,
+    "dydx_submit_enabled": True,
+    "dydx_node_url": FAKE_TESTNET_NODE_URL,
+}
+
+# S6.4-EN BUG-007: under the live ``dydx`` route the order surface fail-closes
+# unless this header is present (mock route ignores it).
+_HITL_HEADERS = {"X-Banxe-Hitl-Confirm": "true"}
+
 
 def _dydx_client(**settings: object) -> TestClient:
-    return TestClient(create_app(Settings(exchange_provider="dydx", **settings)))
+    cfg: dict[str, object] = {**_DYDX_ROUTE_COMBO, **settings}
+    return TestClient(create_app(Settings(**cfg)))
 
 
 def test_router_maps_exchange_unavailable_to_503() -> None:
@@ -199,7 +218,7 @@ def test_router_maps_validation_error_to_400() -> None:
         "clientOrderId": "c1",
         "correlationId": "r1",
     }
-    resp = _dydx_client().post("/api/v1/orders", json=body)
+    resp = _dydx_client().post("/api/v1/orders", json=body, headers=_HITL_HEADERS)
     assert resp.status_code == 400
 
 
@@ -216,7 +235,9 @@ def test_order_requires_session_when_auth_enabled() -> None:
         "clientOrderId": "c1",
         "correlationId": "r1",
     }
-    resp = _dydx_client(auth_enabled=True).post("/api/v1/orders", json=body)
+    resp = _dydx_client(auth_enabled=True).post(
+        "/api/v1/orders", json=body, headers=_HITL_HEADERS
+    )
     assert resp.status_code == 401  # no wallet session
 
 
@@ -256,7 +277,7 @@ def test_authenticated_order_returns_unsigned_intent() -> None:
             "clientOrderId": "c-auth",
             "correlationId": "r-auth",
         },
-        headers={"Authorization": f"Bearer {token}"},
+        headers={"Authorization": f"Bearer {token}", **_HITL_HEADERS},
     )
     assert resp.status_code == 200
     raw = resp.json()["raw"]
